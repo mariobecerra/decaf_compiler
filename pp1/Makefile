@@ -45,7 +45,7 @@ LEXFLAGS = -d
 YACCFLAGS = -dvty
 
 # Link with standard c library, math library, and lex library
-LIBS = -lc -lm -ll
+LIBS = -lc -lm -lfl
 
 # Rules for various parts of the target
 
