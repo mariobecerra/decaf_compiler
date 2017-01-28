@@ -1,0 +1,15 @@
+void         line 6 cols 1-4 is T_Void 
+main         line 6 cols 6-9 is T_Identifier 
+(            line 6 cols 10-10 is '(' 
+)            line 6 cols 11-11 is ')' 
+{            line 7 cols 3-3 is '{' 
+Print        line 8 cols 5-9 is T_Identifier 
+(            line 8 cols 10-10 is '(' 
+2            line 8 cols 11-11 is T_IntConstant (value = 2)
++            line 8 cols 13-13 is '+' 
+2            line 8 cols 15-15 is T_IntConstant (value = 2)
+*            line 8 cols 17-17 is '*' 
+10           line 8 cols 19-20 is T_IntConstant (value = 10)
+)            line 8 cols 21-21 is ')' 
+;            line 8 cols 22-22 is ';' 
+}            line 9 cols 3-3 is '}' 
