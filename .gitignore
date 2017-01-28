@@ -1,0 +1,8 @@
+*.o 
+lex.yy.c 
+dpp.yy.c 
+y.tab.c 
+y.tab.h 
+*.core 
+*.purify 
+purify.log 
