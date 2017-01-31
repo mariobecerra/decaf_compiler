@@ -16,6 +16,7 @@
 #include "utility.h" // for PrintDebug()
 #include "errors.h"
 
+
 /* Global variable: yylval
  * -----------------------
  * This global variable is how we get attribute information about the token
@@ -26,12 +27,14 @@
  */
 YYSTYPE yylval;  // manually declared for pp1, later Yacc provides
 
+
 /* Global variable: yylloc
  * -----------------------
  * This global variable is how we get position information about the token
  * just scanned to the client. (Operates similarly to yylval above)
  */
 struct yyltype yylloc; // manually dclared for pp1, later Yacc provides
+
 
 /* Macro: YY_USER_ACTION 
  * ---------------------
@@ -43,10 +46,16 @@ struct yyltype yylloc; // manually dclared for pp1, later Yacc provides
  * be called once for each pattern scanned from the file, before
  * executing its action.
  */
+
 static void DoBeforeEachAction(); 
 #define YY_USER_ACTION DoBeforeEachAction();
 
 %}
+
+
+
+
+
 
  /* The section before the first %% is the Definitions section of the lex
   * input file. Here is where you set options for the scanner, define lex
@@ -60,6 +69,28 @@ static void DoBeforeEachAction();
  /* All patterns and actions should be placed between the start and stop
   * %% markers which delimit the Rules section. 
   */ 
+
+
+"void"	{ return T_Void; }
+"int"	{ return T_Int; }
+"double"	{ return T_Double; }
+"bool"	{ return T_Bool; }
+"string"	{ return T_String; }
+"class"	{ return T_Class; }
+"interface"	{ return T_Interface; }
+"null"	{ return T_Null; }
+"this"	{ return T_This; }
+"extends"	{ return T_Extends; }
+"implements"	{ return T_Implements; }
+"for"	{ return T_For; }
+"while"	{ return T_While; }
+"if"	{ return T_If; }
+"else"	{ return T_Else; }
+"return"	{ return T_Return; }
+"break"	{ return T_Break; }
+"New"	{ return T_New; }
+"NewArray"	{ return T_NewArray; }
+
 
 %%
 /* The closing %% above marks the end of the Rules section and the beginning
@@ -81,6 +112,7 @@ static void DoBeforeEachAction();
  * be helpful when debugging your scanner. Please be sure the variable is
  * set to false when submitting your final version.
  */
+
 void InitScanner()
 {
     PrintDebug("lex", "Initializing scanner");
