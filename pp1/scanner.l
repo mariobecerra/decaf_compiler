@@ -33,8 +33,10 @@ YYSTYPE yylval;  // manually declared for pp1, later Yacc provides
  * This global variable is how we get position information about the token
  * just scanned to the client. (Operates similarly to yylval above)
  */
+
 struct yyltype yylloc; // manually dclared for pp1, later Yacc provides
 
+int line, first_col, last_col;
 
 /* Macro: YY_USER_ACTION 
  * ---------------------
@@ -53,7 +55,7 @@ static void DoBeforeEachAction();
 %}
 
 
-
+IDNTFR [a-zA-Z][0-9A-Za-z\_]*
 
 
 
@@ -69,6 +71,11 @@ static void DoBeforeEachAction();
  /* All patterns and actions should be placed between the start and stop
   * %% markers which delimit the Rules section. 
   */ 
+
+
+" " {  }
+\n {  /*  colno = 1; lineno++; */}
+\t {  /* colno += TAB_SIZE - colno % TAB_SIZE + 1; */}
 
 
 "void"	{ return T_Void; }
@@ -90,6 +97,41 @@ static void DoBeforeEachAction();
 "break"	{ return T_Break; }
 "New"	{ return T_New; }
 "NewArray"	{ return T_NewArray; }
+
+"+" { return '+'; }
+"-" { return '-'; }
+"*" { return '*'; }
+"/" { return '/'; }
+"%" { return '%'; }
+"<" { return '<'; }
+"<=" { return T_LessEqual; }
+"&&" { return T_And; }
+"||" { return T_Or; }
+"!" { return '!'; }
+";" { return ';'; }
+"," { return ','; }
+"." { return '.'; }
+"[" { return '['; }
+">" { return '>'; }
+"]" { return ']'; }
+">=" { return T_GreaterEqual; }
+"=" { return T_Equal; }
+"==" { return '=='; }
+"!=" { return T_NotEqual; }
+"(" { return '('; }
+")" { return ')'; }
+"{" { return '{'; }
+"}" { return '}'; }
+
+{IDNTFR} { 
+			if (yyleng > MaxIdentLen){
+				ReportError::LongIdentifier(&yylloc, yytext);
+				
+			} 
+			strncpy(yylval.identifier, yytext, MaxIdentLen);
+			return T_Identifier;
+		}
+
 
 
 %%
