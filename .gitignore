@@ -6,3 +6,6 @@ y.tab.h
 *.core 
 *.purify 
 purify.log 
+dcc
+dpp
+
