@@ -36,7 +36,9 @@ YYSTYPE yylval;  // manually declared for pp1, later Yacc provides
 
 struct yyltype yylloc; // manually dclared for pp1, later Yacc provides
 
-int line, first_col, last_col;
+int first_line = 0; 
+int first_col = 0; 
+int last_col = 0;
 
 /* Macro: YY_USER_ACTION 
  * ---------------------
@@ -56,6 +58,8 @@ static void DoBeforeEachAction();
 
 
 IDNTFR [a-zA-Z][0-9A-Za-z\_]*
+INTGR_DEC [0-9]+
+INTGR_HEX 0[xX][0-9a-fA-F]+
 
 
 
@@ -74,7 +78,7 @@ IDNTFR [a-zA-Z][0-9A-Za-z\_]*
 
 
 " " {  }
-\n {  /*  colno = 1; lineno++; */}
+\n {  first_line++;}
 \t {  /* colno += TAB_SIZE - colno % TAB_SIZE + 1; */}
 
 
@@ -132,6 +136,15 @@ IDNTFR [a-zA-Z][0-9A-Za-z\_]*
 			return T_Identifier;
 		}
 
+{INTGR_DEC} {
+			yylval.integerConstant = atoi(yytext); 
+  			return T_IntConstant;
+		}
+
+{INTGR_HEX} {
+			yylval.integerConstant = strtol(yytext, NULL, 16); 
+  			return T_IntConstant;
+		}		
 
 
 %%
