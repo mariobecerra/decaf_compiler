@@ -63,6 +63,7 @@ INTGR_HEX 0[xX][0-9a-fA-F]+
 DBL ([0-9]+\.?[0-9]*)|([+-]?[0-9]+\.[0-9]+[Ee][+-]?[0-9]+)
 BOOL (true)|(false)
 STRNG \"[^\n\"]*\"
+UNTRMTD_STRNG \"[^\n\"]*
 
 
 
@@ -165,10 +166,17 @@ STRNG \"[^\n\"]*\"
 	}
 
 {STRNG} {
-		yylval.stringConstant = new char[yyleng];
+		/*yylval.stringConstant = new char[yyleng];
 		strncpy(yylval.stringConstant, yytext, yyleng);
-		return T_StringConstant;
-	}	
+		return T_StringConstant;*/
+		yylval.stringConstant = strdup(yytext);
+        return T_StringConstant;
+	}
+
+{UNTRMTD_STRNG} {
+		ReportError::UntermString(&yylloc, yytext);
+	}		
+
 
 
 
