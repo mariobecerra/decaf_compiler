@@ -60,6 +60,8 @@ DBL ([0-9]+\.?[0-9]*)|([+-]?[0-9]+\.[0-9]+[Ee][+-]?[0-9]+)
 BOOL (true)|(false)
 STRNG \"[^\n\"]*\"
 UNTRMTD_STRNG \"[^\n\"]*
+ONELINE_COMMENT \/\/.*
+MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
 
 
 
@@ -83,6 +85,7 @@ UNTRMTD_STRNG \"[^\n\"]*
 		yylloc.last_column = 0;
 
 	}
+
 \t { }
 
 
@@ -178,7 +181,9 @@ UNTRMTD_STRNG \"[^\n\"]*
 		ReportError::UntermString(&yylloc, yytext);
 	}		
 
+{ONELINE_COMMENT} { }
 
+{MULTILINE_COMMENT} { }
 
 
 %%
