@@ -27,7 +27,6 @@
  */
 YYSTYPE yylval;  // manually declared for pp1, later Yacc provides
 
-
 /* Global variable: yylloc
  * -----------------------
  * This global variable is how we get position information about the token
@@ -36,9 +35,6 @@ YYSTYPE yylval;  // manually declared for pp1, later Yacc provides
 
 struct yyltype yylloc; // manually dclared for pp1, later Yacc provides
 
-int first_line = 0; 
-int first_col = 0; 
-int last_col = 0;
 
 /* Macro: YY_USER_ACTION 
  * ---------------------
@@ -82,8 +78,12 @@ UNTRMTD_STRNG \"[^\n\"]*
 
 
 " " {  }
-\n {  first_line++;}
-\t {  /* colno += TAB_SIZE - colno % TAB_SIZE + 1; */}
+\n {  
+		yylloc.first_line++;
+		yylloc.last_column = 0;
+
+	}
+\t { }
 
 
 "void"	{ return T_Void; }
@@ -169,6 +169,7 @@ UNTRMTD_STRNG \"[^\n\"]*
 		/*yylval.stringConstant = new char[yyleng];
 		strncpy(yylval.stringConstant, yytext, yyleng);
 		return T_StringConstant;*/
+		/* salen caracteres extraños con strncpy */
 		yylval.stringConstant = strdup(yytext);
         return T_StringConstant;
 	}
@@ -202,7 +203,9 @@ UNTRMTD_STRNG \"[^\n\"]*
  */
 
 void InitScanner()
-{
+{	
+	yylloc.first_line = 1; 
+
     PrintDebug("lex", "Initializing scanner");
     yy_flex_debug = false;
 }
@@ -215,4 +218,7 @@ void InitScanner()
  */
 static void DoBeforeEachAction()
 {
+	yylloc.first_column = yylloc.last_column + 1;
+	yylloc.last_column = yylloc.first_column + yyleng - 1;
+
 }
