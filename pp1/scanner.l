@@ -61,6 +61,8 @@ IDNTFR [a-zA-Z][0-9A-Za-z\_]*
 INTGR_DEC [0-9]+
 INTGR_HEX 0[xX][0-9a-fA-F]+
 DBL ([0-9]+\.?[0-9]*)|([+-]?[0-9]+\.[0-9]+[Ee][+-]?[0-9]+)
+BOOL (true)|(false)
+STRNG \"[^\n\"]*\"
 
 
 
@@ -128,29 +130,46 @@ DBL ([0-9]+\.?[0-9]*)|([+-]?[0-9]+\.[0-9]+[Ee][+-]?[0-9]+)
 "{" { return '{'; }
 "}" { return '}'; }
 
-{IDNTFR} { 
-			if (yyleng > MaxIdentLen){
-				ReportError::LongIdentifier(&yylloc, yytext);
-				
-			} 
-			strncpy(yylval.identifier, yytext, MaxIdentLen);
-			return T_Identifier;
+{BOOL} {
+		if(strcmp(yytext, "false") == 0){
+            yylval.boolConstant = false;
 		}
+        else {
+			yylval.boolConstant = true;
+		}
+        return T_BoolConstant;
+	}
+
+{IDNTFR} { 
+		if (yyleng > MaxIdentLen){
+			ReportError::LongIdentifier(&yylloc, yytext);
+			
+		} 
+		strncpy(yylval.identifier, yytext, MaxIdentLen);
+		return T_Identifier;
+	}
 
 {INTGR_DEC} {
-			yylval.integerConstant = atoi(yytext); 
-  			return T_IntConstant;
-		}
+		yylval.integerConstant = atoi(yytext); 
+		return T_IntConstant;
+	}
 
 {INTGR_HEX} {
-			yylval.integerConstant = strtol(yytext, NULL, 16); 
-  			return T_IntConstant;
+		yylval.integerConstant = strtol(yytext, NULL, 16); 
+		return T_IntConstant;
 		}		
 
 {DBL} {
-			yylval.doubleConstant = atof(yytext); 
-  			return T_DoubleConstant;
-		}
+		yylval.doubleConstant = atof(yytext); 
+		return T_DoubleConstant;
+	}
+
+{STRNG} {
+		yylval.stringConstant = new char[yyleng];
+		strncpy(yylval.stringConstant, yytext, yyleng);
+		return T_StringConstant;
+	}	
+
 
 
 %%
