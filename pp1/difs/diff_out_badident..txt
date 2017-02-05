@@ -1,0 +1,5 @@
+11a12,15
+> 
+> *** Error line 5.
+> *** Identifier too long: "variable_whose_name_is_much_too_long"
+> 

@@ -1,0 +1,30 @@
+1,5c1,5
+< void         line 6 cols 2-5 is T_Void 
+< main         line 6 cols 7-10 is T_Identifier 
+< (            line 6 cols 11-11 is '(' 
+< )            line 6 cols 12-12 is ')' 
+< {            line 7 cols 4-4 is '{' 
+---
+> void         line 6 cols 1-4 is T_Void 
+> main         line 6 cols 6-9 is T_Identifier 
+> (            line 6 cols 10-10 is '(' 
+> )            line 6 cols 11-11 is ')' 
+> {            line 7 cols 3-3 is '{' 
+8,15c8,15
+< 2            line 8 cols 12-12 is T_IntConstant (value = 2)
+< +            line 8 cols 14-14 is '+' 
+< 2            line 8 cols 16-16 is T_IntConstant (value = 2)
+< *            line 8 cols 18-18 is '*' 
+< 10           line 8 cols 20-21 is T_IntConstant (value = 10)
+< )            line 8 cols 22-22 is ')' 
+< ;            line 8 cols 23-23 is ';' 
+< }            line 9 cols 4-4 is '}' 
+---
+> 2            line 8 cols 11-11 is T_IntConstant (value = 2)
+> +            line 8 cols 13-13 is '+' 
+> 2            line 8 cols 15-15 is T_IntConstant (value = 2)
+> *            line 8 cols 17-17 is '*' 
+> 10           line 8 cols 19-20 is T_IntConstant (value = 10)
+> )            line 8 cols 21-21 is ')' 
+> ;            line 8 cols 22-22 is ';' 
+> }            line 9 cols 3-3 is '}' 
