@@ -19,6 +19,8 @@
  */
 int main(int argc, char *argv[])
 {
+	yylex();
+
   int ch;
   while ((ch = getc(stdin)) != EOF)
     putc(ch, stdout);

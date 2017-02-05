@@ -6,4 +6,13 @@
  * here, otherwise the file can remain empty.
  */
 
+ONELINE_COMMENT \/\/.*
+MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
+
+%%
+
+{ONELINE_COMMENT} { }
+
+{MULTILINE_COMMENT} { }
+
 %%

@@ -181,9 +181,7 @@ MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
 		ReportError::UntermString(&yylloc, yytext);
 	}		
 
-{ONELINE_COMMENT} { }
 
-{MULTILINE_COMMENT} { }
 
 
 %%
