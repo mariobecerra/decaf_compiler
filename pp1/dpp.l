@@ -6,13 +6,42 @@
  * here, otherwise the file can remain empty.
  */
 
+%{
+#include <map>
+#include <string>
+
+using namespace std;
+
+std::map<std::string, std::string> mapOfMacros;
+
+
+
+%}
+
 ONELINE_COMMENT \/\/.*
 MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
+NAME [A-Z]+
+MACRO_DECLARATION "#define"\ {NAME}\ .*
 
 %%
 
 {ONELINE_COMMENT} { }
 
 {MULTILINE_COMMENT} { }
+
+{MACRO_DECLARATION} { 
+	
+	string name_replacement, name, replacement, texto;
+	int find_space;
+
+	texto = strdup(yytext);
+
+	name_replacement = texto.substr(8); // NAME replacement
+	find_space = name_replacement.find(" "); // ubica dónde está el primer espacio en name_replacement
+	name = name_replacement.substr(0, find_space);
+	replacement = name_replacement.substr(find_space);
+	mapOfMacros.insert(make_pair(name, replacement));	
+
+}
 
 %%
