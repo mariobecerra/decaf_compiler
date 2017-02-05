@@ -51,9 +51,12 @@ MACRO_USAGE \#{NAME}
 	
 	name = texto.substr(1);
 	replacement = mapOfMacros.find(name)->second;
-	
+	printf("%s", replacement.c_str());
 }
 
-. {}
+. {
+	string texto = strdup(yytext);
+	printf("%s", texto.c_str());
+}
 
 %%
