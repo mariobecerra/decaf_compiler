@@ -179,7 +179,9 @@ MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
 
 {UNTRMTD_STRNG} {
 		ReportError::UntermString(&yylloc, yytext);
-	}		
+	}
+
+. { ReportError::UnrecogChar(&yylloc, *yytext); }
 
 
 
