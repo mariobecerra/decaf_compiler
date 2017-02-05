@@ -22,6 +22,7 @@ ONELINE_COMMENT \/\/.*
 MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
 NAME [A-Z]+
 MACRO_DECLARATION "#define"\ {NAME}\ .*
+MACRO_USAGE \#{NAME}
 
 %%
 
@@ -40,8 +41,19 @@ MACRO_DECLARATION "#define"\ {NAME}\ .*
 	find_space = name_replacement.find(" "); // ubica dónde está el primer espacio en name_replacement
 	name = name_replacement.substr(0, find_space);
 	replacement = name_replacement.substr(find_space);
-	mapOfMacros.insert(make_pair(name, replacement));	
+	mapOfMacros.insert(make_pair(name, replacement)); // mapOfMacros[name]=replacement;
 
 }
+
+{MACRO_USAGE} {
+	string texto, name, replacement;
+	texto = strdup(yytext);
+	
+	name = texto.substr(1);
+	replacement = mapOfMacros.find(name)->second;
+	
+}
+
+. {}
 
 %%
