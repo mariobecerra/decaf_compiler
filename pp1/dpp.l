@@ -28,17 +28,32 @@ int count_chars(string s, char c) {
 
 %}
 
+%x COMMENT_STATE
+%option stack
+
+BEGIN_COMMENT \/\*
 ONELINE_COMMENT \/\/.*
 MULTILINE_COMMENT \/\*([^*]|[\n]|(\*+([^*/]|[\n])))*\*+\/
 NAME [A-Z]+
 MACRO_DECLARATION "#define"\ {NAME}\ .*
 MACRO_USAGE \#{NAME}
 
+
 %%
 
 \n {line_num++;
 	string texto = strdup(yytext);
 	printf("%s", texto.c_str());
+}
+
+{BEGIN_COMMENT} {
+	BEGIN(COMMENT_STATE);
+	yy_push_state(COMMENT_STATE);
+}
+
+<COMMENT_STATE><<EOF>> {
+	ReportError::UntermComment(); 	
+	yy_pop_state();
 }
 
 {ONELINE_COMMENT} { /* printf("%s", "\n"); */ }
