@@ -9,12 +9,13 @@
 %{
 #include <map>
 #include <string>
+#include "errors.h"
 
 using namespace std;
 
 std::map<std::string, std::string> mapOfMacros;
 
-
+int line_num = 1;
 
 %}
 
@@ -25,6 +26,8 @@ MACRO_DECLARATION "#define"\ {NAME}\ .*
 MACRO_USAGE \#{NAME}
 
 %%
+
+\n {line_num++;}
 
 {ONELINE_COMMENT} { }
 
@@ -50,8 +53,12 @@ MACRO_USAGE \#{NAME}
 	texto = strdup(yytext);
 	
 	name = texto.substr(1);
-	replacement = mapOfMacros.find(name)->second;
-	printf("%s", replacement.c_str());
+	if(mapOfMacros.find(name) == mapOfMacros.end()){
+		ReportError::InvalidDirective(line_num); 
+	} else {
+		replacement = mapOfMacros.find(name)->second;
+		printf("%s", replacement.c_str());
+	}
 }
 
 . {
