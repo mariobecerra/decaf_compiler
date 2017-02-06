@@ -97,6 +97,13 @@ MACRO_USAGE \#{NAME}
 	}
 }
 
+
+#define[^\n]* {
+	ReportError::InvalidDirective(line_num); 
+}
+
+
+
 . {
 	string texto = strdup(yytext);
 	printf("%s", texto.c_str());
