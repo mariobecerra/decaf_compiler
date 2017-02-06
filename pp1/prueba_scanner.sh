@@ -8,7 +8,7 @@ do
    : 
    # do whatever on $i
    (./dcc < "samples/"$i"frag") > temp_file_out.txt 2>&1 # imprime std output y std error
-   (diff temp_file_out.txt "samples/"$i"out") > difs/diff_out_$i.txt
+   (diff --text temp_file_out.txt "samples/"$i"out") > difs/diff_out_$i.txt
    rm temp_file_out.txt
 done
 
@@ -18,6 +18,6 @@ do
    : 
    # do whatever on $i
    (./dcc < "samples/"$i"decaf") > temp_file_out.txt 2>&1
-   (diff temp_file_out.txt "samples/"$i"out") > difs/diff_out_$i.txt
+   (diff --text temp_file_out.txt "samples/"$i"out") > difs/diff_out_$i.txt
    rm temp_file_out.txt
 done
