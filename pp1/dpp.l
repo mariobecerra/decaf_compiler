@@ -27,7 +27,10 @@ MACRO_USAGE \#{NAME}
 
 %%
 
-\n {line_num++;}
+\n {line_num++;
+	string texto = strdup(yytext);
+	printf("%s", texto.c_str());
+}
 
 {ONELINE_COMMENT} { }
 
