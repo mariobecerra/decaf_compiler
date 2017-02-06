@@ -17,6 +17,15 @@ std::map<std::string, std::string> mapOfMacros;
 
 int line_num = 1;
 
+int count_chars(string s, char c) {
+  int count = 0;
+
+  for (int i = 0; i < s.size(); i++)
+    if (s[i] == c) count++;
+
+  return count;
+}
+
 %}
 
 ONELINE_COMMENT \/\/.*
@@ -32,9 +41,18 @@ MACRO_USAGE \#{NAME}
 	printf("%s", texto.c_str());
 }
 
-{ONELINE_COMMENT} { }
+{ONELINE_COMMENT} { /* printf("%s", "\n"); */ }
 
-{MULTILINE_COMMENT} { }
+{MULTILINE_COMMENT} { 
+
+	string texto = strdup(yytext);
+	int num_lineas = count_chars(texto, '\n');
+
+	for(int i = 0; i < num_lineas; i++){
+		printf("%s", "\n");
+	}
+
+}
 
 {MACRO_DECLARATION} { 
 	
