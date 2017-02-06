@@ -56,7 +56,7 @@ static void DoBeforeEachAction();
 IDNTFR [a-zA-Z][0-9A-Za-z\_]*
 INTGR_DEC [0-9]+
 INTGR_HEX 0[xX][0-9a-fA-F]+
-DBL ([0-9]+\.?[0-9]*)|([+-]?[0-9]+\.[0-9]+[Ee][+-]?[0-9]+)
+DBL ([0-9]+\.?[0-9]*)|([+-]?[0-9]+\.[0-9]*[Ee][+-]?[0-9]+)
 BOOL (true)|(false)
 STRNG \"[^\n\"]*\"
 UNTRMTD_STRNG \"[^\n\"]*
