@@ -78,7 +78,7 @@ MACRO_USAGE \#{NAME}
 		ReportError::InvalidDirective(line_num); 
 	} else {
 		replacement = mapOfMacros.find(name)->second;
-		printf("%s", replacement.c_str());
+		printf("%s", replacement.substr(1).c_str());
 	}
 }
 
