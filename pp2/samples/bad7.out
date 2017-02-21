@@ -1,0 +1,6 @@
+
+*** Error line 12.
+  betsy = New(Cow, true);
+                 ^
+*** parse error
+
