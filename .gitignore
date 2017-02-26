@@ -11,3 +11,5 @@ dpp
 pp1/difs
 pp1/out_mbc
 difs/*
+*.sublime-project
+*.sublime-workspace
