@@ -46,6 +46,9 @@ void yyerror(char *msg); // standard error-handling routine
     char identifier[MaxIdentLen+1]; // +1 for terminating null
     Decl *decl;
     List<Decl*> *declList;
+
+    // Declarations by MBC
+    VarDecl *varDecl;
 }
 
 
@@ -81,6 +84,7 @@ void yyerror(char *msg); // standard error-handling routine
  */
 %type <declList>  DeclList 
 %type <decl>      Decl
+%type <varDecl>   VariableDecl
 
 %%
 /* Rules
@@ -89,25 +93,485 @@ void yyerror(char *msg); // standard error-handling routine
  * %% markers which delimit the Rules section.
 	 
  */
-Program   :    DeclList            { 
-                                      @1; 
-                                      /* pp2: The @1 is needed to convince 
-                                       * yacc to set up yylloc. You can remove 
-                                       * it once you have other uses of @n*/
-                                      Program *program = new Program($1);
-                                      // if no errors, advance to next phase
-                                      if (ReportError::NumErrors() == 0) 
-                                          program->Print(0);
-                                    }
-          ;
+Program           :   DeclList            
+                      { 
+                        @1; 
+                        /* pp2: The @1 is needed to convince 
+                         * yacc to set up yylloc. You can remove 
+                         * it once you have other uses of @n*/
+                        Program *program = new Program($1);
+                        // if no errors, advance to next phase
+                        if (ReportError::NumErrors() == 0) 
+                            program->Print(0);
+                      }
+                  ;
 
-DeclList  :    DeclList Decl        { ($$=$1)->Append($2); }
-          |    Decl                 { ($$ = new List<Decl*>)->Append($1); }
-          ;
 
-Decl      :    T_Void               { /* pp2: replace with correct rules  */ } 
-          ;
-          
+
+DeclList          :   DeclList Decl       
+                      { 
+                        ($$=$1)->Append($2); 
+                      }
+                  |   Decl                
+                      { 
+                        ($$ = new List<Decl*>)->Append($1); 
+                      }
+                  ;
+
+
+
+Decl              :   VariableDecl        
+                      {
+                        /* actions */  
+                      } 
+                  |   FunctionDecl        
+                      { 
+                        /* actions */  
+                      } 
+                  |   ClassDecl           
+                      {
+                        /* actions */  
+                      }
+                  |   InterfaceDecl       
+                      {
+                        /* actions */  
+                      }
+                  ;
+
+
+
+VariableDecl      :   Variable ';'        
+                      {
+                        /* actions */ 
+                      }
+
+
+
+Variable          :   Type T_Identifier   
+                      {
+                        /* actions */  
+                      }
+
+
+
+Type              :   T_Int               
+                      {
+                        /* actions */  
+                      }
+                  |   T_Double            
+                      {
+                        /* actions */   
+                      }
+                  |   T_Bool              
+                      {
+                        /* actions */  
+                      }
+                  |   T_String            
+                      {
+                        /* actions */
+                      }
+                  |   T_Identifier        
+                      {
+                        /* actions */  
+                      }
+                  |   Type T_Dims /* '[]' is declared as T_Dims */ 
+                      {
+                        /* actions */  
+                      }
+
+
+
+FunctionDecl      :   Type T_Identifier '(' Formals ')' StmtBlock 
+                      {
+                          /* actions */  
+                      }
+                  |   T_Void T_Identifier '(' Formals ')' StmtBlock 
+                      {
+                        /* actions */   
+                      }
+                  ;
+
+
+
+Formals           :   VarList
+                      {
+                        /* actions */   
+                      }
+                  |   /* empty */
+                      {
+                        /* actions */   
+                      }
+                  ;
+
+
+
+VarList           :   Variable
+                  |   VarList ',' Variable
+                  ;
+
+
+
+ClassDecl         :   T_Class T_Identifier T_Extends T_Identifier T_Implements Ident_plus_comma '{' Field_star '}'
+                      {
+                        /* actions */
+                      }
+                  |   T_Class T_Identifier T_Implements Ident_plus_comma {' Field_star '}'
+                      {
+                        /* actions */
+                      }
+                  |   T_Class T_Identifier T_Extends T_Identifier '{' Field_star '}'
+                      {
+                        /* actions */
+                      }
+                  |   T_Class T_Identifier '{' Field_star '}'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Field_star        :   /* empty */
+                  |   Field_star Field
+                  ;       
+
+
+
+Ident_plus_comma  :   T_Identifier
+                  |   Ident_plus_comma ',' T_Identifier
+                  ;                                 
+
+
+
+Field             :   VariableDecl 
+                      {
+                        /* actions */
+                      }
+                  |   FunctionDecl
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+InterfaceDecl     :   T_Interface T_Identifier '{' Prototype_star '}'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Prototype_star    :   /* empty */
+                  |   Prototype_star Prototype
+                  ;
+
+
+
+Prototype         :   Type T_Identifier '(' Formals ')' ';' 
+                      {
+                        /* actions */
+                      }
+                  |   T_Void T_Identifier '(' Formals ')' ';'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+StmtBlock         :   '{' Var_Decl_star Stmt_star '}'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Var_Decl_star     :   /*empty*/ 
+                  |   Var_Decl_star VariableDecl
+                  ;
+
+
+
+Stmt_star         :   /* empty */
+                  |   Stmt_star Stmt
+                  ;
+
+
+
+Stmt              :   ';'
+                      {
+                          /* actions */
+                      }
+                  |   Expr ';'
+                      {
+                          /* actions */
+                      }
+                  |   IfStmt
+                      {
+                          /* actions */
+                      }
+                  |   WhileStmt
+                      {
+                          /* actions */
+                      }
+                  |   ForStmt
+                      {
+                          /* actions */
+                      }
+                  |   BreakStmt
+                      {
+                          /* actions */
+                      }
+                  |   ReturnStmt
+                      {
+                          /* actions */
+                      }
+                  |   PrintStmt
+                      {
+                          /* actions */
+                      }
+                  |   StmtBlock
+                      {
+                          /* actions */
+                      }
+                  ;
+
+
+
+IfStmt            :   T_If '(' Expr ')' Stmt
+                      {
+                        /* actions */
+                      }
+                  |   T_If '(' Expr ')' Stmt T_Else Stmt
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+WhileStmt         :   'while' '(' Expr ')' Stmt
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+ForStmt           :   T_For '(' Optional_Expr ';' Expr ';' Optional_Expr ')' Stmt
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Optional_Expr     :   /* empty */
+                  |   Expr
+                  ;
+
+
+
+ReturnStmt        :   T_Return Optional_Expr ';'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+BreakStmt         :   T_Break ';'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+PrintStmt         :   T_Print '(' Expr_plus_comma ')' ';'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Expr_plus_comma   :   Expr 
+                  |   Expr_plus_comma ',' Expr
+                  ;
+
+
+
+Expr              :   LValue '=' Expr 
+                      {
+                        /* actions */
+                      }
+                  |   Constant
+                      {
+                        /* actions */
+                      }
+                  |   LValue
+                      {
+                        /* actions */
+                      }
+                  |   T_This 
+                      {
+                        /* actions */
+                      }
+                  |   Call 
+                      {
+                        /* actions */
+                      }
+                  |   '(' Expr ')'
+                      {
+                        /* actions */
+                      }
+                  |   Expr '+' Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr '-' Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr '*' Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr '/' Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr '%' Expr
+                      {
+                        /* actions */
+                      }
+                  |   '-' Expr %prec UMINUS
+                      {
+                        /* actions */
+                      }
+                  |   Expr '<' Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr T_LessEqual Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr '>' Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr T_GreaterEqual Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr T_Equal Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr T_NotEqual Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr T_And Expr
+                      {
+                        /* actions */
+                      }
+                  |   Expr T_Or Expr
+                      {
+                        /* actions */
+                      }
+                  |   '!' Expr
+                      {
+                        /* actions */
+                      }
+                  |   T_ReadInteger '(' ')'
+                      {
+                        /* actions */
+                      }
+                  |   T_ReadLine '(' ')'
+                      {
+                        /* actions */
+                      }
+                  |   T_New '(' T_Identifier ')'
+                      {
+                        /* actions */
+                      }
+                  |   T_NewArray '(' Expr ',' Type ')'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+LValue            :   T_Identifier
+                      {
+                        /* actions */
+                      }
+                  |   Expr '.' T_Identifier 
+                      {
+                        /* actions */
+                      }
+                  |   Expr '[' Expr ']'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Call              :   T_Identifier '(' Actuals ')'
+                      {
+                        /* actions */
+                      }
+                  |   Expr '.' T_Identifier '(' Actuals ')'
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Actuals           :   Expr_plus_comma
+                      {
+                        /* actions */
+                      }
+                  |   /* empty */
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
+
+Constant          :   T_IntConstant
+                      {
+                        /* actions */
+                      }
+                  |   T_DoubleConstant
+                      {
+                        /* actions */
+                      }
+                  |   T_BoolConstant
+                      {
+                        /* actions */
+                      }
+                  |   T_StringConstant
+                      {
+                        /* actions */
+                      }
+                  |   T_Null
+                      {
+                        /* actions */
+                      }
+                  ;
+
+
 
 
 %%
