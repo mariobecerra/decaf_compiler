@@ -86,6 +86,27 @@ void yyerror(char *msg); // standard error-handling routine
 %type <decl>      Decl
 %type <varDecl>   VariableDecl
 
+
+/*  Precedence and associativity 
+    Operators are declared in increasing order of precedence.
+    All operators declared on the same line are at the same precedence level.
+    (O'Riley Flex and Bison page 155)
+*/
+
+
+%nonassoc IF_NO_ELSE
+%nonassoc T_Else
+%nonassoc '='
+%left T_Or
+%left T_And
+%left T_Equal T_NotEqual
+%nonassoc T_LessEqual T_GreaterEqual '<' '>'
+%left '+' '-'
+%left '*' '/' '%'
+%right '!' UMINUS /* UMINUS: pseudotoken standing for unary minus. (O'Riley Flex and Bison page 60) */
+%nonassoc '[' '.'
+
+
 %%
 /* Rules
  * -----
@@ -93,6 +114,9 @@ void yyerror(char *msg); // standard error-handling routine
  * %% markers which delimit the Rules section.
 	 
  */
+
+
+
 Program           :   DeclList            
                       { 
                         @1; 
@@ -197,7 +221,7 @@ Formals           :   VarList
                       {
                         /* actions */   
                       }
-                  |   /* empty */
+                  |   /* epsilon */
                       {
                         /* actions */   
                       }
@@ -215,7 +239,7 @@ ClassDecl         :   T_Class T_Identifier T_Extends T_Identifier T_Implements I
                       {
                         /* actions */
                       }
-                  |   T_Class T_Identifier T_Implements Ident_plus_comma {' Field_star '}'
+                  |   T_Class T_Identifier T_Implements Ident_plus_comma '{' Field_star '}'
                       {
                         /* actions */
                       }
@@ -231,7 +255,7 @@ ClassDecl         :   T_Class T_Identifier T_Extends T_Identifier T_Implements I
 
 
 
-Field_star        :   /* empty */
+Field_star        :   /* epsilon */
                   |   Field_star Field
                   ;       
 
@@ -263,7 +287,7 @@ InterfaceDecl     :   T_Interface T_Identifier '{' Prototype_star '}'
 
 
 
-Prototype_star    :   /* empty */
+Prototype_star    :   /* epsilon */
                   |   Prototype_star Prototype
                   ;
 
@@ -281,22 +305,34 @@ Prototype         :   Type T_Identifier '(' Formals ')' ';'
 
 
 
-StmtBlock         :   '{' Var_Decl_star Stmt_star '}'
+Var_Decl_plus     :   VariableDecl
+                  |   Var_Decl_plus VariableDecl
+                  ;
+
+
+
+Stmt_plus         :   Stmt
+                  |   Stmt_plus Stmt
+                  ;
+
+
+
+StmtBlock         :   '{' Var_Decl_plus Stmt_plus '}'
                       {
                         /* actions */
                       }
-                  ;
-
-
-
-Var_Decl_star     :   /*empty*/ 
-                  |   Var_Decl_star VariableDecl
-                  ;
-
-
-
-Stmt_star         :   /* empty */
-                  |   Stmt_star Stmt
+                  |   '{' Stmt_plus '}'
+                      {
+                        /* actions */
+                      }
+                  |   '{' Var_Decl_plus '}'
+                      {
+                        /* actions */
+                      }
+                  |   '{' '}'
+                      {
+                        /* actions */
+                      }
                   ;
 
 
@@ -341,7 +377,7 @@ Stmt              :   ';'
 
 
 
-IfStmt            :   T_If '(' Expr ')' Stmt
+IfStmt            :   T_If '(' Expr ')' Stmt %prec IF_NO_ELSE
                       {
                         /* actions */
                       }
@@ -353,7 +389,7 @@ IfStmt            :   T_If '(' Expr ')' Stmt
 
 
 
-WhileStmt         :   'while' '(' Expr ')' Stmt
+WhileStmt         :   T_While '(' Expr ')' Stmt
                       {
                         /* actions */
                       }
@@ -369,7 +405,7 @@ ForStmt           :   T_For '(' Optional_Expr ';' Expr ';' Optional_Expr ')' Stm
 
 
 
-Optional_Expr     :   /* empty */
+Optional_Expr     :   /* epsilon */
                   |   Expr
                   ;
 
@@ -541,7 +577,7 @@ Actuals           :   Expr_plus_comma
                       {
                         /* actions */
                       }
-                  |   /* empty */
+                  |   /* epsilon */
                       {
                         /* actions */
                       }
