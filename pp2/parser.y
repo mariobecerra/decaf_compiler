@@ -47,8 +47,43 @@ void yyerror(char *msg); // standard error-handling routine
     Decl *decl;
     List<Decl*> *declList;
 
+
     // Declarations by MBC
+    
+    Program *program;
     VarDecl *varDecl;
+    // Variable
+    Type *type;
+    FnDecl *fnDecl;
+    // Formals
+    List<VarDecl*> *varDeclList;
+    ClassDecl *classDecl;
+    // Field_star
+    // Ident_plus_comma
+    // Field
+    InterfaceDecl *interfDecl;
+    // Prototype_star
+    // Prototype
+    // Var_Decl_Plus
+    List<Stmt*> *stmt_plus;
+    StmtBlock *stmtBlock;
+    Stmt *stmt;
+    IfStmt *ifStmt;
+    WhileStmt *whileStmt;
+    ForStmt *forStmt;
+    // optional_expr
+    ReturnStmt *returnStmt;
+    BreakStmt *breakStmt;
+    PrintStmt *printStmt;
+    List<Expr*> *expr_plus_comma;
+    Expr *expr;
+    LValue *lValue;
+    Call *call;
+    // Actuals
+    // Constant
+    NamedType *namedType;
+    List<NamedType*> *namedTypeList;
+
 }
 
 
@@ -82,9 +117,29 @@ void yyerror(char *msg); // standard error-handling routine
  * of the union named "declList" which is of type List<Decl*>.
  * pp2: You'll need to add many of these of your own.
  */
-%type <declList>  DeclList 
-%type <decl>      Decl
-%type <varDecl>   VariableDecl
+
+%type <program>         Program
+%type <declList>        DeclList Field_star Prototype_star
+%type <decl>            Decl Field Prototype
+%type <varDecl>         VariableDecl Variable
+%type <fnDecl>          FunctionDecl
+%type <type>            Type
+%type <varDeclList>     Formals VarList Var_Decl_plus
+%type <classDecl>       ClassDecl
+%type <interfDecl>      InterfaceDecl
+%type <stmt_plus>       Stmt_plus
+%type <stmtBlock>       StmtBlock
+%type <stmt>            Stmt
+%type <ifStmt>          IfStmt
+%type <whileStmt>       WhileStmt
+%type <forStmt>         ForStmt
+%type <returnStmt>      ReturnStmt
+%type <breakStmt>       BreakStmt
+%type <printStmt>       PrintStmt
+%type <expr_plus_comma> Expr_plus_comma Actuals
+%type <expr>            Expr Optional_Expr Constant
+%type <lValue>          LValue
+%type <call>            Call
 
 
 /*  Precedence and associativity 
@@ -229,8 +284,8 @@ Formals           :   VarList
 
 
 
-VarList           :   Variable
-                  |   VarList ',' Variable
+VarList           :   Variable {}
+                  |   VarList ',' Variable {}
                   ;
 
 
@@ -255,8 +310,8 @@ ClassDecl         :   T_Class T_Identifier T_Extends T_Identifier T_Implements I
 
 
 
-Field_star        :   /* epsilon */
-                  |   Field_star Field
+Field_star        :   /* epsilon */ {}
+                  |   Field_star Field {}
                   ;       
 
 
@@ -287,8 +342,8 @@ InterfaceDecl     :   T_Interface T_Identifier '{' Prototype_star '}'
 
 
 
-Prototype_star    :   /* epsilon */
-                  |   Prototype_star Prototype
+Prototype_star    :   /* epsilon */ {}
+                  |   Prototype_star Prototype {}
                   ;
 
 
@@ -305,14 +360,14 @@ Prototype         :   Type T_Identifier '(' Formals ')' ';'
 
 
 
-Var_Decl_plus     :   VariableDecl
-                  |   Var_Decl_plus VariableDecl
+Var_Decl_plus     :   VariableDecl {}
+                  |   Var_Decl_plus VariableDecl {}
                   ;
 
 
 
-Stmt_plus         :   Stmt
-                  |   Stmt_plus Stmt
+Stmt_plus         :   Stmt {}
+                  |   Stmt_plus Stmt {}
                   ;
 
 
@@ -405,8 +460,8 @@ ForStmt           :   T_For '(' Optional_Expr ';' Expr ';' Optional_Expr ')' Stm
 
 
 
-Optional_Expr     :   /* epsilon */
-                  |   Expr
+Optional_Expr     :   /* epsilon */ {}
+                  |   Expr {}
                   ;
 
 
@@ -435,8 +490,8 @@ PrintStmt         :   T_Print '(' Expr_plus_comma ')' ';'
 
 
 
-Expr_plus_comma   :   Expr 
-                  |   Expr_plus_comma ',' Expr
+Expr_plus_comma   :   Expr {}
+                  |   Expr_plus_comma ',' Expr {}
                   ;
 
 
