@@ -201,19 +201,19 @@ DeclList          :   DeclList Decl
 
 Decl              :   VariableDecl        
                       {
-                        /* actions */  
+                        $$ = $1;
                       } 
                   |   FunctionDecl        
                       { 
-                        /* actions */  
+                        $$ = $1;
                       } 
                   |   ClassDecl           
                       {
-                        /* actions */  
+                        $$ = $1;
                       }
                   |   InterfaceDecl       
                       {
-                        /* actions */  
+                        $$ = $1;
                       }
                   ;
 
@@ -221,52 +221,57 @@ Decl              :   VariableDecl
 
 VariableDecl      :   Variable ';'        
                       {
-                        /* actions */ 
+                        $$ = $1;
                       }
 
 
 
 Variable          :   Type T_Identifier   
                       {
-                        /* actions */  
+                        Identifier ident = new Identifier(@2, $2);
+                        $$ = new VarDecl(ident, $1);
                       }
 
 
 
 Type              :   T_Int               
                       {
-                        /* actions */  
+                        $$ = Type::intType;
                       }
                   |   T_Double            
                       {
-                        /* actions */   
+                        $$ = Type::doubleType;
                       }
                   |   T_Bool              
                       {
-                        /* actions */  
+                        $$ = Type::boolType;
                       }
                   |   T_String            
                       {
-                        /* actions */
+                        $$ = Type::stringType;
                       }
                   |   T_Identifier        
                       {
-                        /* actions */  
+                        Identifier ident = new Identifier($1);
+                        $$ = new NamedType(ident);
                       }
                   |   Type T_Dims /* '[]' is declared as T_Dims */ 
                       {
-                        /* actions */  
+                        $$ = new ArrayType(@1, $1);
                       }
 
 
 
 FunctionDecl      :   Type T_Identifier '(' Formals ')' StmtBlock 
                       {
-                          /* actions */  
+                          Identifier ident = new Identifier(@2, $2);
+                          $$ = new FnDecl(ident, $1, $4);
+                          $$ -> SetFunctionBody($6);
                       }
                   |   T_Void T_Identifier '(' Formals ')' StmtBlock 
                       {
-                        /* actions */   
+                          $$ = new FnDecl(ident, Type::voidType, $4);
+                          $$ -> SetFunctionBody($6);
                       }
                   ;
 
@@ -274,61 +279,90 @@ FunctionDecl      :   Type T_Identifier '(' Formals ')' StmtBlock
 
 Formals           :   VarList
                       {
-                        /* actions */   
+                        $$ = $1;
                       }
                   |   /* epsilon */
                       {
-                        /* actions */   
+                        $$ = new List<VarDecl*>; 
                       }
                   ;
 
 
 
-VarList           :   Variable {}
-                  |   VarList ',' Variable {}
+VarList           :   Variable 
+                      {
+                        $$ = new List<VarDecl*>;
+                        $$ -> Append($1);
+                      }
+                  |   VarList ',' Variable 
+                      {
+                        $$ -> Append($3);
+                      }
                   ;
 
 
 
 ClassDecl         :   T_Class T_Identifier T_Extends T_Identifier T_Implements Ident_plus_comma '{' Field_star '}'
                       {
-                        /* actions */
+                        Identifier ident_1 = new Identifier(@2, $2);
+                        Identifier ident_2 = new Identifier(@4, $4);
+                        NamedType nt = new NamedType(ident_2);
+                        $$ = new ClassDecl(ident_1, nt, $6, $8);
                       }
                   |   T_Class T_Identifier T_Implements Ident_plus_comma '{' Field_star '}'
-                      {
-                        /* actions */
+                      { 
+                        Identifier ident = new Identifier(@2, $2);
+                        $$ = new ClassDecl(ident, NULL, $4, $6);
                       }
                   |   T_Class T_Identifier T_Extends T_Identifier '{' Field_star '}'
                       {
-                        /* actions */
+                        Identifier ident_1 = new Identifier(@2, $2);
+                        Identifier ident_2 = new Identifier(@4, $4);
+                        NamedType nt = new NamedType(ident_2);
+                        $$ = new ClassDecl(ident_1, nt, new List<NamedType*>, $6);
                       }
                   |   T_Class T_Identifier '{' Field_star '}'
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@2, $2);
+                        $$ = new ClassDecl(ident, NULL, new List<NamedType*>, $4);
                       }
                   ;
 
 
 
-Field_star        :   /* epsilon */ {}
-                  |   Field_star Field {}
+Field_star        :   /* epsilon */ 
+                      {
+                        $$ = new List<Decl*>;
+                      }
+                  |   Field_star Field 
+                      {
+                        $$ = new List<Decl*>;
+                        $$ -> Append($2);
+                      }
                   ;       
 
 
 
-Ident_plus_comma  :   T_Identifier
+Ident_plus_comma  :   T_Identifier 
+                      {
+                        $$ = new List<NamedType*>;
+                        $$ -> Append($1);
+                      }
                   |   Ident_plus_comma ',' T_Identifier
+                      {
+                        $$ -> Append($3);
+                      }
                   ;                                 
 
 
 
 Field             :   VariableDecl 
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   |   FunctionDecl
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   ;
 
@@ -336,97 +370,116 @@ Field             :   VariableDecl
 
 InterfaceDecl     :   T_Interface T_Identifier '{' Prototype_star '}'
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@2, $2);
+                        $$ = InterfaceDecl(ident, $4);
                       }
                   ;
 
 
 
-Prototype_star    :   /* epsilon */ {}
-                  |   Prototype_star Prototype {}
+Prototype_star    :   /* epsilon */ 
+                      {
+                        $$ = new List<Decl*>;
+                      }
+                  |   Prototype_star Prototype 
+                      {
+                        $$ -> Append($2);
+                      }
                   ;
 
 
 
 Prototype         :   Type T_Identifier '(' Formals ')' ';' 
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@2, $2);
+                        $$ = new FnDecl(ident, $1, $4);
                       }
                   |   T_Void T_Identifier '(' Formals ')' ';'
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@2, $2);
+                        $$ = new FnDecl(ident, Type::voidType, $4);
                       }
                   ;
 
 
 
-Var_Decl_plus     :   VariableDecl {}
-                  |   Var_Decl_plus VariableDecl {}
+Var_Decl_plus     :   VariableDecl 
+                      {
+                        $$ = new List<VarDecl*>;
+                        $$ -> Append($1);
+                      }
+                  |   Var_Decl_plus VariableDecl 
+                      {
+                        $$ -> Append($2);
+                      }
                   ;
 
 
 
-Stmt_plus         :   Stmt {}
-                  |   Stmt_plus Stmt {}
+Stmt_plus         :   Stmt 
+                      {
+                        $$ = new List<Stmt*>;
+                        $$ -> Append($1);
+                      }
+                  |   Stmt_plus Stmt 
+                      {
+                        $$ -> Append($2); 
+                      }
                   ;
 
 
 
 StmtBlock         :   '{' Var_Decl_plus Stmt_plus '}'
                       {
-                        /* actions */
+                        $$ = new StmtBlock($2, $3);
                       }
                   |   '{' Stmt_plus '}'
                       {
-                        /* actions */
+                        $$ = new StmtBlock(new List<VarDecl*>, $2);
                       }
                   |   '{' Var_Decl_plus '}'
                       {
-                        /* actions */
+                        $$ = new StmtBlock($2, new List<Stmt*>);
                       }
                   |   '{' '}'
                       {
-                        /* actions */
+                        $$ = new StmtBlock(new List<VarDecl*>, new List<Stmt*>);
                       }
                   ;
 
 
 
-Stmt              :   ';'
+Stmt              :   Optional_Expr ';'
                       {
-                          /* actions */
-                      }
-                  |   Expr ';'
-                      {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   IfStmt
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   WhileStmt
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   ForStmt
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   BreakStmt
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   ReturnStmt
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   PrintStmt
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   |   StmtBlock
                       {
-                          /* actions */
+                          $$ = $1;
                       }
                   ;
 
@@ -434,11 +487,11 @@ Stmt              :   ';'
 
 IfStmt            :   T_If '(' Expr ')' Stmt %prec IF_NO_ELSE
                       {
-                        /* actions */
+                        $$ = new IfStmt($3, $5, NULL);
                       }
                   |   T_If '(' Expr ')' Stmt T_Else Stmt
                       {
-                        /* actions */
+                        $$ = new IfStmt($3, $5, $7);
                       }
                   ;
 
@@ -446,7 +499,7 @@ IfStmt            :   T_If '(' Expr ')' Stmt %prec IF_NO_ELSE
 
 WhileStmt         :   T_While '(' Expr ')' Stmt
                       {
-                        /* actions */
+                        $$ = new WhileStmt($3, $5);
                       }
                   ;
 
@@ -454,21 +507,27 @@ WhileStmt         :   T_While '(' Expr ')' Stmt
 
 ForStmt           :   T_For '(' Optional_Expr ';' Expr ';' Optional_Expr ')' Stmt
                       {
-                        /* actions */
+                        $$ = new ForStmt($3, $5, $7, $9);
                       }
                   ;
 
 
 
-Optional_Expr     :   /* epsilon */ {}
-                  |   Expr {}
+Optional_Expr     :   /* epsilon */ 
+                      {
+                        $$ = new EmptyExpr();
+                      }
+                  |   Expr 
+                      {
+                        $$ = $1;
+                      }
                   ;
 
 
 
 ReturnStmt        :   T_Return Optional_Expr ';'
                       {
-                        /* actions */
+                        $$ = new ReturnStmt($2);
                       }
                   ;
 
@@ -476,7 +535,7 @@ ReturnStmt        :   T_Return Optional_Expr ';'
 
 BreakStmt         :   T_Break ';'
                       {
-                        /* actions */
+                        $$ = new BreakStmt(@1);
                       }
                   ;
 
@@ -484,117 +543,142 @@ BreakStmt         :   T_Break ';'
 
 PrintStmt         :   T_Print '(' Expr_plus_comma ')' ';'
                       {
-                        /* actions */
+                        $$ = new PrintStmt($3);
                       }
                   ;
 
 
 
-Expr_plus_comma   :   Expr {}
-                  |   Expr_plus_comma ',' Expr {}
+Expr_plus_comma   :   Expr 
+                      {
+                        $$ = new List<Expr*>;
+                        $$ -> Append($1);
+                      }
+                  |   Expr_plus_comma ',' Expr 
+                      {
+                        $$ -> Append($3);
+                      }
                   ;
 
 
 
 Expr              :   LValue '=' Expr 
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "=");
+                        $$ = new EqualityExpr($1, op, $3);
                       }
                   |   Constant
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   |   LValue
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   |   T_This 
                       {
-                        /* actions */
+                        $$ = new This(@1);
                       }
                   |   Call 
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   |   '(' Expr ')'
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   |   Expr '+' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, $2);
+                        $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '-' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, $2);
+                        $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '*' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, $2);
+                        $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '/' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, $2);
+                        $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '%' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, $2);
+                        $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   '-' Expr %prec UMINUS
                       {
-                        /* actions */
+                        Operator op = new Operator(@1, $1);
+                        $$ = new ArithmeticExpr(op, $2);
                       }
                   |   Expr '<' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "<");
+                        $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_LessEqual Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "<=");
+                        $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr '>' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, ">");
+                        $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_GreaterEqual Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "!=");
+                        $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_Equal Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "==");
+                        $$ = new EqualityExpr($1, op, $3);
                       }
                   |   Expr T_NotEqual Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "!=");
+                        $$ = new EqualityExpr($1, op, $3);
                       }
                   |   Expr T_And Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "&&");
+                        $$ = new LogicalExpr($1, op, $3);
                       }
                   |   Expr T_Or Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@2, "||");
+                        $$ = new LogicalExpr($1, op, $3);
                       }
                   |   '!' Expr
                       {
-                        /* actions */
+                        Operator op = new Operator(@1, $1);
+                        $$ = new LogicalExpr(op, $2);
                       }
                   |   T_ReadInteger '(' ')'
                       {
-                        /* actions */
+                        $$ = new ReadIntegerExpr(@1);
                       }
                   |   T_ReadLine '(' ')'
                       {
-                        /* actions */
+                        $$ = new ReadLineExpr(@1);
                       }
                   |   T_New '(' T_Identifier ')'
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@3, $3);
+                        NamedType nt = new NamedType(ident);
+                        $$ = new NewExpr(@1, nt);
                       }
                   |   T_NewArray '(' Expr ',' Type ')'
                       {
-                        /* actions */
+                        $$ = new NewArrayExpr(@1, $3, $5);
                       }
                   ;
 
@@ -602,15 +686,17 @@ Expr              :   LValue '=' Expr
 
 LValue            :   T_Identifier
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@1, $1);
+                        $$ = new FieldAccess(NULL, ident);
                       }
                   |   Expr '.' T_Identifier 
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@3, $3);
+                        $$ = new FieldAccess(@1, ident);
                       }
                   |   Expr '[' Expr ']'
                       {
-                        /* actions */
+                        $$ = new ArrayAccess(@1, $1, $3);
                       }
                   ;
 
@@ -618,11 +704,13 @@ LValue            :   T_Identifier
 
 Call              :   T_Identifier '(' Actuals ')'
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@1, $1);
+                        $$ = new Call(@1, NULL, ident, $3);  
                       }
                   |   Expr '.' T_Identifier '(' Actuals ')'
                       {
-                        /* actions */
+                        Identifier ident = new Identifier(@3, $3);
+                        $$ = new Call(@1, $1, ident, $5);
                       }
                   ;
 
@@ -630,11 +718,11 @@ Call              :   T_Identifier '(' Actuals ')'
 
 Actuals           :   Expr_plus_comma
                       {
-                        /* actions */
+                        $$ = $1;
                       }
                   |   /* epsilon */
                       {
-                        /* actions */
+                        $$ = new List<Expr*>;
                       }
                   ;
 
@@ -642,23 +730,23 @@ Actuals           :   Expr_plus_comma
 
 Constant          :   T_IntConstant
                       {
-                        /* actions */
+                        $$ = new IntConstant(@1, $1);
                       }
                   |   T_DoubleConstant
                       {
-                        /* actions */
+                        $$ = new DoubleConstant(@1, $1);
                       }
                   |   T_BoolConstant
                       {
-                        /* actions */
+                        $$ = new BoolConstant(@1, $1);
                       }
                   |   T_StringConstant
                       {
-                        /* actions */
+                        $$ = new StringConstant(@1, $1);
                       }
                   |   T_Null
                       {
-                        /* actions */
+                        $$ = new NullConstant(@1);
                       }
                   ;
 
