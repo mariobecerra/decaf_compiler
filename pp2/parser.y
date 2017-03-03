@@ -175,7 +175,7 @@ void yyerror(char *msg); // standard error-handling routine
 
 Program           :   DeclList            
                       { 
-                        @1; 
+                        /*@1; */
                         /* pp2: The @1 is needed to convince 
                          * yacc to set up yylloc. You can remove 
                          * it once you have other uses of @n*/
@@ -338,7 +338,7 @@ Field_star        :   /* epsilon */
                       }
                   |   Field_star Field 
                       {
-                        $$ = new List<Decl*>;
+                        $$ = $1;
                         $$ -> Append($2);
                       }
                   ;       
