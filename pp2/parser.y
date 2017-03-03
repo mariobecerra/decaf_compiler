@@ -571,7 +571,7 @@ Expr_plus_comma   :   Expr
 Expr              :   LValue '=' Expr 
                       {
                         Operator *op = new Operator(@2, "=");
-                        $$ = new EqualityExpr($1, op, $3);
+                        $$ = new AssignExpr($1, op, $3);
                       }
                   |   Constant
                       {
@@ -640,7 +640,7 @@ Expr              :   LValue '=' Expr
                       }
                   |   Expr T_GreaterEqual Expr
                       {
-                        Operator *op = new Operator(@2, "!=");
+                        Operator *op = new Operator(@2, ">=");
                         $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_Equal Expr
