@@ -140,6 +140,7 @@ void yyerror(char *msg); // standard error-handling routine
 %type <expr>            Expr Optional_Expr Constant
 %type <lValue>          LValue
 %type <call>            Call
+%type<namedTypeList>    Ident_plus_comma
 
 
 /*  Precedence and associativity 
@@ -228,7 +229,7 @@ VariableDecl      :   Variable ';'
 
 Variable          :   Type T_Identifier   
                       {
-                        Identifier ident = new Identifier(@2, $2);
+                        Identifier *ident = new Identifier(@2, $2);
                         $$ = new VarDecl(ident, $1);
                       }
 
@@ -252,7 +253,7 @@ Type              :   T_Int
                       }
                   |   T_Identifier        
                       {
-                        Identifier ident = new Identifier($1);
+                        Identifier *ident = new Identifier(@1, $1);
                         $$ = new NamedType(ident);
                       }
                   |   Type T_Dims /* '[]' is declared as T_Dims */ 
@@ -264,12 +265,13 @@ Type              :   T_Int
 
 FunctionDecl      :   Type T_Identifier '(' Formals ')' StmtBlock 
                       {
-                          Identifier ident = new Identifier(@2, $2);
+                          Identifier *ident = new Identifier(@2, $2);
                           $$ = new FnDecl(ident, $1, $4);
                           $$ -> SetFunctionBody($6);
                       }
                   |   T_Void T_Identifier '(' Formals ')' StmtBlock 
                       {
+                          Identifier *ident = new Identifier(@2, $2);
                           $$ = new FnDecl(ident, Type::voidType, $4);
                           $$ -> SetFunctionBody($6);
                       }
@@ -304,26 +306,26 @@ VarList           :   Variable
 
 ClassDecl         :   T_Class T_Identifier T_Extends T_Identifier T_Implements Ident_plus_comma '{' Field_star '}'
                       {
-                        Identifier ident_1 = new Identifier(@2, $2);
-                        Identifier ident_2 = new Identifier(@4, $4);
-                        NamedType nt = new NamedType(ident_2);
+                        Identifier *ident_1 = new Identifier(@2, $2);
+                        Identifier *ident_2 = new Identifier(@4, $4);
+                        NamedType *nt = new NamedType(ident_2);
                         $$ = new ClassDecl(ident_1, nt, $6, $8);
                       }
                   |   T_Class T_Identifier T_Implements Ident_plus_comma '{' Field_star '}'
                       { 
-                        Identifier ident = new Identifier(@2, $2);
+                        Identifier *ident = new Identifier(@2, $2);
                         $$ = new ClassDecl(ident, NULL, $4, $6);
                       }
                   |   T_Class T_Identifier T_Extends T_Identifier '{' Field_star '}'
                       {
-                        Identifier ident_1 = new Identifier(@2, $2);
-                        Identifier ident_2 = new Identifier(@4, $4);
-                        NamedType nt = new NamedType(ident_2);
+                        Identifier *ident_1 = new Identifier(@2, $2);
+                        Identifier *ident_2 = new Identifier(@4, $4);
+                        NamedType *nt = new NamedType(ident_2);
                         $$ = new ClassDecl(ident_1, nt, new List<NamedType*>, $6);
                       }
                   |   T_Class T_Identifier '{' Field_star '}'
                       {
-                        Identifier ident = new Identifier(@2, $2);
+                        Identifier *ident = new Identifier(@2, $2);
                         $$ = new ClassDecl(ident, NULL, new List<NamedType*>, $4);
                       }
                   ;
@@ -345,12 +347,16 @@ Field_star        :   /* epsilon */
 
 Ident_plus_comma  :   T_Identifier 
                       {
+                        Identifier *ident = new Identifier(@1, $1);
+                        NamedType *nt = new NamedType(ident);
                         $$ = new List<NamedType*>;
-                        $$ -> Append($1);
+                        $$ -> Append(nt);
                       }
                   |   Ident_plus_comma ',' T_Identifier
                       {
-                        $$ -> Append($3);
+                        Identifier *ident = new Identifier(@3, $3);
+                        NamedType *nt = new NamedType(ident);
+                        $$ -> Append(nt);
                       }
                   ;                                 
 
@@ -370,8 +376,8 @@ Field             :   VariableDecl
 
 InterfaceDecl     :   T_Interface T_Identifier '{' Prototype_star '}'
                       {
-                        Identifier ident = new Identifier(@2, $2);
-                        $$ = InterfaceDecl(ident, $4);
+                        Identifier *ident = new Identifier(@2, $2);
+                        $$ = new InterfaceDecl(ident, $4);
                       }
                   ;
 
@@ -391,12 +397,12 @@ Prototype_star    :   /* epsilon */
 
 Prototype         :   Type T_Identifier '(' Formals ')' ';' 
                       {
-                        Identifier ident = new Identifier(@2, $2);
+                        Identifier *ident = new Identifier(@2, $2);
                         $$ = new FnDecl(ident, $1, $4);
                       }
                   |   T_Void T_Identifier '(' Formals ')' ';'
                       {
-                        Identifier ident = new Identifier(@2, $2);
+                        Identifier *ident = new Identifier(@2, $2);
                         $$ = new FnDecl(ident, Type::voidType, $4);
                       }
                   ;
@@ -527,7 +533,7 @@ Optional_Expr     :   /* epsilon */
 
 ReturnStmt        :   T_Return Optional_Expr ';'
                       {
-                        $$ = new ReturnStmt($2);
+                        $$ = new ReturnStmt(@1, $2);
                       }
                   ;
 
@@ -564,7 +570,7 @@ Expr_plus_comma   :   Expr
 
 Expr              :   LValue '=' Expr 
                       {
-                        Operator op = new Operator(@2, "=");
+                        Operator *op = new Operator(@2, "=");
                         $$ = new EqualityExpr($1, op, $3);
                       }
                   |   Constant
@@ -585,81 +591,81 @@ Expr              :   LValue '=' Expr
                       }
                   |   '(' Expr ')'
                       {
-                        $$ = $1;
+                        $$ = $2;
                       }
                   |   Expr '+' Expr
                       {
-                        Operator op = new Operator(@2, $2);
+                        Operator *op = new Operator(@2, "+");
                         $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '-' Expr
                       {
-                        Operator op = new Operator(@2, $2);
+                        Operator *op = new Operator(@2, "-");
                         $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '*' Expr
                       {
-                        Operator op = new Operator(@2, $2);
+                        Operator *op = new Operator(@2, "*");
                         $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '/' Expr
                       {
-                        Operator op = new Operator(@2, $2);
+                        Operator *op = new Operator(@2, "/");
                         $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   Expr '%' Expr
                       {
-                        Operator op = new Operator(@2, $2);
+                        Operator *op = new Operator(@2, "%");
                         $$ = new ArithmeticExpr($1, op, $3);
                       }
                   |   '-' Expr %prec UMINUS
                       {
-                        Operator op = new Operator(@1, $1);
+                        Operator *op = new Operator(@1, "-");
                         $$ = new ArithmeticExpr(op, $2);
                       }
                   |   Expr '<' Expr
                       {
-                        Operator op = new Operator(@2, "<");
+                        Operator *op = new Operator(@2, "<");
                         $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_LessEqual Expr
                       {
-                        Operator op = new Operator(@2, "<=");
+                        Operator *op = new Operator(@2, "<=");
                         $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr '>' Expr
                       {
-                        Operator op = new Operator(@2, ">");
+                        Operator *op = new Operator(@2, ">");
                         $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_GreaterEqual Expr
                       {
-                        Operator op = new Operator(@2, "!=");
+                        Operator *op = new Operator(@2, "!=");
                         $$ = new RelationalExpr($1, op, $3);
                       }
                   |   Expr T_Equal Expr
                       {
-                        Operator op = new Operator(@2, "==");
+                        Operator *op = new Operator(@2, "==");
                         $$ = new EqualityExpr($1, op, $3);
                       }
                   |   Expr T_NotEqual Expr
                       {
-                        Operator op = new Operator(@2, "!=");
+                        Operator *op = new Operator(@2, "!=");
                         $$ = new EqualityExpr($1, op, $3);
                       }
                   |   Expr T_And Expr
                       {
-                        Operator op = new Operator(@2, "&&");
+                        Operator *op = new Operator(@2, "&&");
                         $$ = new LogicalExpr($1, op, $3);
                       }
                   |   Expr T_Or Expr
                       {
-                        Operator op = new Operator(@2, "||");
+                        Operator *op = new Operator(@2, "||");
                         $$ = new LogicalExpr($1, op, $3);
                       }
                   |   '!' Expr
                       {
-                        Operator op = new Operator(@1, $1);
+                        Operator *op = new Operator(@1, "!");
                         $$ = new LogicalExpr(op, $2);
                       }
                   |   T_ReadInteger '(' ')'
@@ -672,8 +678,8 @@ Expr              :   LValue '=' Expr
                       }
                   |   T_New '(' T_Identifier ')'
                       {
-                        Identifier ident = new Identifier(@3, $3);
-                        NamedType nt = new NamedType(ident);
+                        Identifier *ident = new Identifier(@3, $3);
+                        NamedType *nt = new NamedType(ident);
                         $$ = new NewExpr(@1, nt);
                       }
                   |   T_NewArray '(' Expr ',' Type ')'
@@ -686,13 +692,13 @@ Expr              :   LValue '=' Expr
 
 LValue            :   T_Identifier
                       {
-                        Identifier ident = new Identifier(@1, $1);
+                        Identifier *ident = new Identifier(@1, $1);
                         $$ = new FieldAccess(NULL, ident);
                       }
                   |   Expr '.' T_Identifier 
                       {
-                        Identifier ident = new Identifier(@3, $3);
-                        $$ = new FieldAccess(@1, ident);
+                        Identifier *ident = new Identifier(@3, $3);
+                        $$ = new FieldAccess($1, ident);
                       }
                   |   Expr '[' Expr ']'
                       {
@@ -704,12 +710,12 @@ LValue            :   T_Identifier
 
 Call              :   T_Identifier '(' Actuals ')'
                       {
-                        Identifier ident = new Identifier(@1, $1);
+                        Identifier *ident = new Identifier(@1, $1);
                         $$ = new Call(@1, NULL, ident, $3);  
                       }
                   |   Expr '.' T_Identifier '(' Actuals ')'
                       {
-                        Identifier ident = new Identifier(@3, $3);
+                        Identifier *ident = new Identifier(@3, $3);
                         $$ = new Call(@1, $1, ident, $5);
                       }
                   ;
