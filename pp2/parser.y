@@ -224,6 +224,7 @@ VariableDecl      :   Variable ';'
                       {
                         $$ = $1;
                       }
+                  ;    
 
 
 
@@ -232,6 +233,7 @@ Variable          :   Type T_Identifier
                         Identifier *ident = new Identifier(@2, $2);
                         $$ = new VarDecl(ident, $1);
                       }
+                  ;    
 
 
 
@@ -260,6 +262,7 @@ Type              :   T_Int
                       {
                         $$ = new ArrayType(@1, $1);
                       }
+                  ;
 
 
 
