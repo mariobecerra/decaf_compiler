@@ -14,11 +14,9 @@ fi
 for i in "${programas_decaf[@]}"
 do
    : 
-   # do whatever on $i
+   echo $i"decaf"
    (./dcc < "samples/"$i"decaf") > $output_folder/$i"out1" 2>&1
    tr < $output_folder/$i"out1" -d '\000' > $output_folder/$i"out"
    (diff --text $output_folder/$i"out" "samples/"$i"out") > $difs_folder/$i"diff"
-   # (diff --text temp_file_out.txt "samples/"$i"out") > $difs_folder/$i"diff"
-   # rm temp_file_out.txt
    rm $output_folder/$i"out1"
 done

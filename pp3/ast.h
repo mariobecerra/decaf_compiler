@@ -42,6 +42,7 @@ class Node
   public:
     Node(yyltype loc);
     Node();
+    virtual ~Node() {}
     
     yyltype *GetLocation()   { return location; }
     void SetParent(Node *p)  { parent = p; }
@@ -57,6 +58,8 @@ class Identifier : public Node
   public:
     Identifier(yyltype loc, const char *name);
     friend std::ostream& operator<<(std::ostream& out, Identifier *id) { return out << id->name; }
+    bool operator==(const Identifier &rhs);
+    const char* Name() { return name; }
 };
 
 
