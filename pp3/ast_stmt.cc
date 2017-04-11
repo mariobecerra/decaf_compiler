@@ -9,11 +9,11 @@
 #include "errors.h"
 #include "ast_type.h"
 
-int Scope::AddDecl(Decl *d) {
+int Scope::Add_Declaration(Decl *d) {
     Decl *lookup = table->Lookup(d->Name());
 
     if (lookup != NULL) {
-        ReportError::DeclConflict(d, lookup); // Conflict Declarations with the same name.
+        ReportError::DeclConflict(d, lookup);
         return 1;
     }
 
@@ -21,7 +21,7 @@ int Scope::AddDecl(Decl *d) {
     return 0;
 }
 
-Scope *Program::gScope = new Scope();
+Scope *Program::G_Scope = new Scope();
 
 Program::Program(List<Decl*> *d) {
     Assert(d != NULL);
@@ -37,41 +37,41 @@ void Program::Check() {
      *      and polymorphism in the node classes.
      */
     
-    BuildScope();
+    ScopeMaker();
 
     for (int i = 0, n = decls->NumElements(); i < n; ++i)
         decls->Nth(i)->Check();
 }
 
-void Program::BuildScope() {
+void Program::ScopeMaker() {
     for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        gScope->AddDecl(decls->Nth(i));
+        G_Scope->Add_Declaration(decls->Nth(i));
 
     for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        decls->Nth(i)->BuildScope(gScope);
+        decls->Nth(i)->ScopeMaker(G_Scope);
 }
 
-void Stmt::BuildScope(Scope *parent) {
+void Stmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 }
 
 StmtBlock::StmtBlock(List<VarDecl*> *d, List<Stmt*> *s) {
     Assert(d != NULL && s != NULL);
-    (decls=d)->SetParentAll(this);
     (stmts=s)->SetParentAll(this);
+    (decls=d)->SetParentAll(this);
 }
 
-void StmtBlock::BuildScope(Scope *parent) {
+void StmtBlock::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
     for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        scope->AddDecl(decls->Nth(i));
+        scope->Add_Declaration(decls->Nth(i));
 
     for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        decls->Nth(i)->BuildScope(scope);
+        decls->Nth(i)->ScopeMaker(scope);
 
     for (int i = 0, n = stmts->NumElements(); i < n; ++i)
-        stmts->Nth(i)->BuildScope(scope);
+        stmts->Nth(i)->ScopeMaker(scope);
 }
 
 void StmtBlock::Check() {
@@ -88,11 +88,10 @@ ConditionalStmt::ConditionalStmt(Expr *t, Stmt *b) {
     (body=b)->SetParent(this);
 }
 
-void ConditionalStmt::BuildScope(Scope *parent) {
+void ConditionalStmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
-
-    test->BuildScope(scope);
-    body->BuildScope(scope);
+    body->ScopeMaker(scope);
+    test->ScopeMaker(scope);
 }
 
 void ConditionalStmt::Check() {
@@ -100,12 +99,11 @@ void ConditionalStmt::Check() {
     body->Check();
 }
 
-void LoopStmt::BuildScope(Scope *parent) {
+void LoopStmt::ScopeMaker(Scope *parent) {
+    test->ScopeMaker(scope);
+    body->ScopeMaker(scope);
     scope->SetParent(parent);
     scope->SetLoopStmt(this);
-
-    test->BuildScope(scope);
-    body->BuildScope(scope);
 }
 
 ForStmt::ForStmt(Expr *i, Expr *t, Expr *s, Stmt *b): LoopStmt(t, b) { 
@@ -115,19 +113,19 @@ ForStmt::ForStmt(Expr *i, Expr *t, Expr *s, Stmt *b): LoopStmt(t, b) {
 }
 
 IfStmt::IfStmt(Expr *t, Stmt *tb, Stmt *eb): ConditionalStmt(t, tb) { 
-    Assert(t != NULL && tb != NULL); // else can be NULL
+    Assert(t != NULL && tb != NULL); 
     elseBody = eb;
     if (elseBody) elseBody->SetParent(this);
 }
 
-void IfStmt::BuildScope(Scope *parent) {
+void IfStmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
-    test->BuildScope(scope);
-    body->BuildScope(scope);
+    test->ScopeMaker(scope);
+    body->ScopeMaker(scope);
 
     if (elseBody != NULL)
-        elseBody->BuildScope(scope);
+        elseBody->ScopeMaker(scope);
 }
 
 void IfStmt::Check() {
@@ -144,7 +142,6 @@ void BreakStmt::Check() {
             return;
         if (s->GetSwitchStmt() != NULL)
             return;
-
         s = s->GetParent();
     }
 }
@@ -154,15 +151,13 @@ ReturnStmt::ReturnStmt(yyltype loc, Expr *e) : Stmt(loc) {
     (expr=e)->SetParent(this);
 }
 
-void ReturnStmt::BuildScope(Scope *parent) {
+void ReturnStmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
-
-    expr->BuildScope(scope);
+    expr->ScopeMaker(scope);
 }
 
 void ReturnStmt::Check() {
     expr->Check();
-
     FnDecl *d = NULL;
     Scope *s = scope;
     while (s != NULL) {
@@ -173,7 +168,7 @@ void ReturnStmt::Check() {
     }
 
     Type *expected = d->GetReturnType();
-    Type *given = expr->GetType();
+    Type *given = expr->TypeFinder();
     EmptyExpr *ee = dynamic_cast<EmptyExpr*>(expr);
 }
   
@@ -182,16 +177,16 @@ PrintStmt::PrintStmt(List<Expr*> *a) {
     (args=a)->SetParentAll(this);
 }
 
-void PrintStmt::BuildScope(Scope *parent) {
+void PrintStmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
     for (int i = 0, n = args->NumElements(); i < n; ++i)
-        args->Nth(i)->BuildScope(scope);
+        args->Nth(i)->ScopeMaker(scope);
 }
 
 void PrintStmt::Check() {
     for (int i = 0, n = args->NumElements(); i < n; ++i) {
-        Type *given = args->Nth(i)->GetType();
+        Type *given = args->Nth(i)->TypeFinder();
     }
 
     for (int i = 0, n = args->NumElements(); i < n; ++i)
@@ -199,18 +194,18 @@ void PrintStmt::Check() {
 }
 
 SwitchStmt::SwitchStmt(Expr *e, List<CaseStmt*> *s) {
-    Assert(e != NULL && s != NULL); // DefaultStmt can be NULL
+    Assert(e != NULL && s != NULL); 
     (expr=e)->SetParent(this);
     (caseStmts=s)->SetParentAll(this);
 }
 
-void SwitchStmt::BuildScope(Scope *parent) {
+void SwitchStmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
     scope->SetSwitchStmt(this);
 
-    expr->BuildScope(scope);
+    expr->ScopeMaker(scope);
     for (int i = 0, n = caseStmts->NumElements(); i < n; ++i)
-        caseStmts->Nth(i)->BuildScope(scope);
+        caseStmts->Nth(i)->ScopeMaker(scope);
 }
 
 void SwitchStmt::Check() {
@@ -229,10 +224,10 @@ SwitchStmt::CaseStmt::CaseStmt(Expr *e, List<Stmt*> *s) {
     (caseBody=s)->SetParentAll(this);
 }
 
-void SwitchStmt::CaseStmt::BuildScope(Scope *parent) {
+void SwitchStmt::CaseStmt::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
     for (int i = 0, n = caseBody->NumElements(); i < n; ++i)
-        caseBody->Nth(i)->BuildScope(scope);
+        caseBody->Nth(i)->ScopeMaker(scope);
 }
 
 void SwitchStmt::CaseStmt::Check() {

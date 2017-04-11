@@ -7,33 +7,32 @@
 #include "ast_decl.h"
 #include <string.h>
 
-ClassDecl* Expr::GetClassDecl(Scope *s) {
+ClassDecl* Expr::Get_Class_Declaration(Scope *s) {
     while (s != NULL) {
         ClassDecl *d;
-        if ((d = s->GetClassDecl()) != NULL)
+        if ((d = s->Get_Class_Declaration()) != NULL)
             return d;
         s = s->GetParent();
     }
-
     return NULL;
 }
 
-Decl* Expr::GetFieldDecl(Identifier *f, Type *b) {
+Decl* Expr::Get_Field_Declaration(Identifier *f, Type *b) {
     NamedType *t = dynamic_cast<NamedType*>(b);
 
     while (t != NULL) {
-        Decl *d = Program::gScope->table->Lookup(t->Name());
+        Decl *d = Program::G_Scope->table->Lookup(t->Name());
         ClassDecl *c = dynamic_cast<ClassDecl*>(d);
         InterfaceDecl *i = dynamic_cast<InterfaceDecl*>(d);
 
         Decl *fieldDecl;
         if (c != NULL) {
-            if ((fieldDecl = GetFieldDecl(f, c->GetScope())) != NULL)
+            if ((fieldDecl = Get_Field_Declaration(f, c->GetScope())) != NULL)
                 return fieldDecl;
             else
                 t = c->GetExtends();
         } else if (i != NULL) {
-            if ((fieldDecl = GetFieldDecl(f, i->GetScope())) != NULL)
+            if ((fieldDecl = Get_Field_Declaration(f, i->GetScope())) != NULL)
                 return fieldDecl;
             else
                 t = NULL;
@@ -41,11 +40,10 @@ Decl* Expr::GetFieldDecl(Identifier *f, Type *b) {
             t = NULL;
         }
     }
-
-    return GetFieldDecl(f, scope);
+    return Get_Field_Declaration(f, scope);
 }
 
-Decl* Expr::GetFieldDecl(Identifier *f, Scope *s) {
+Decl* Expr::Get_Field_Declaration(Identifier *f, Scope *s) {
     while (s != NULL) {
         Decl *lookup;
         if ((lookup = s->table->Lookup(f->Name())) != NULL)
@@ -57,7 +55,7 @@ Decl* Expr::GetFieldDecl(Identifier *f, Scope *s) {
     return NULL;
 }
 
-Type* EmptyExpr::GetType() {
+Type* EmptyExpr::TypeFinder() {
     return Type::errorType;
 }
 
@@ -65,7 +63,7 @@ IntConstant::IntConstant(yyltype loc, int val) : Expr(loc) {
     value = val;
 }
 
-Type* IntConstant::GetType() {
+Type* IntConstant::TypeFinder() {
     return Type::intType;
 }
 
@@ -73,7 +71,7 @@ DoubleConstant::DoubleConstant(yyltype loc, double val) : Expr(loc) {
     value = val;
 }
 
-Type* DoubleConstant::GetType() {
+Type* DoubleConstant::TypeFinder() {
     return Type::doubleType;
 }
 
@@ -81,7 +79,7 @@ BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc) {
     value = val;
 }
 
-Type* BoolConstant::GetType() {
+Type* BoolConstant::TypeFinder() {
     return Type::boolType;
 }
 
@@ -90,11 +88,11 @@ StringConstant::StringConstant(yyltype loc, const char *val) : Expr(loc) {
     value = strdup(val);
 }
 
-Type* StringConstant::GetType() {
+Type* StringConstant::TypeFinder() {
     return Type::stringType;
 }
 
-Type* NullConstant::GetType() {
+Type* NullConstant::TypeFinder() {
     return Type::nullType;
 }
 
@@ -118,13 +116,13 @@ CompoundExpr::CompoundExpr(Operator *o, Expr *r)
     (right=r)->SetParent(this);
 }
 
-void CompoundExpr::BuildScope(Scope *parent) {
+void CompoundExpr::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
     if (left != NULL)
-        left->BuildScope(scope);
+        left->ScopeMaker(scope);
     if (right != NULL)
-        right->BuildScope(scope);
+        right->ScopeMaker(scope);
 }
 
 void CompoundExpr::Check() {
@@ -135,25 +133,25 @@ void CompoundExpr::Check() {
         right->Check();
 }
 
-Type* ArithmeticExpr::GetType() {
-    Type *rtype = right->GetType();
+Type* ArithmeticExpr::TypeFinder() {
+    Type *rtype = right->TypeFinder();
 
     if (left == NULL) {
-        if (rtype->IsEquivalentTo(Type::intType) ||
-            rtype->IsEquivalentTo(Type::doubleType))
+        if (rtype->AreEquiv(Type::intType) ||
+            rtype->AreEquiv(Type::doubleType))
             return rtype;
         else
             return Type::errorType;
     }
 
-    Type *ltype = left->GetType();
+    Type *ltype = left->TypeFinder();
 
-    if (ltype->IsEquivalentTo(Type::intType) &&
-        rtype->IsEquivalentTo(Type::intType))
+    if (ltype->AreEquiv(Type::intType) &&
+        rtype->AreEquiv(Type::intType))
         return ltype;
 
-    if (ltype->IsEquivalentTo(Type::doubleType) &&
-        rtype->IsEquivalentTo(Type::doubleType))
+    if (ltype->AreEquiv(Type::doubleType) &&
+        rtype->AreEquiv(Type::doubleType))
         return ltype;
 
     return Type::errorType;
@@ -165,34 +163,34 @@ void ArithmeticExpr::Check() {
 
     right->Check();
 
-    Type *rtype = right->GetType();
+    Type *rtype = right->TypeFinder();
 
     if (left == NULL) {
         return;
     }
 
-    Type *ltype = left->GetType();
+    Type *ltype = left->TypeFinder();
 
-    if (ltype->IsEquivalentTo(Type::intType) &&
-        rtype->IsEquivalentTo(Type::intType))
+    if (ltype->AreEquiv(Type::intType) &&
+        rtype->AreEquiv(Type::intType))
         return;
 
     
-    if (ltype->IsEquivalentTo(Type::doubleType) &&
-        rtype->IsEquivalentTo(Type::doubleType))
+    if (ltype->AreEquiv(Type::doubleType) &&
+        rtype->AreEquiv(Type::doubleType))
         return;
 }
 
-Type* RelationalExpr::GetType() {
-    Type *rtype = right->GetType();
-    Type *ltype = left->GetType();
+Type* RelationalExpr::TypeFinder() {
+    Type *rtype = right->TypeFinder();
+    Type *ltype = left->TypeFinder();
 
-    if (ltype->IsEquivalentTo(Type::intType) &&
-        rtype->IsEquivalentTo(Type::intType))
+    if (ltype->AreEquiv(Type::intType) &&
+        rtype->AreEquiv(Type::intType))
         return Type::errorType;
 
-    if (ltype->IsEquivalentTo(Type::doubleType) &&
-        rtype->IsEquivalentTo(Type::doubleType))
+    if (ltype->AreEquiv(Type::doubleType) &&
+        rtype->AreEquiv(Type::doubleType))
         return Type::errorType;
 
     return Type::boolType;
@@ -201,24 +199,24 @@ Type* RelationalExpr::GetType() {
 void RelationalExpr::Check() {
     left->Check();
     right->Check();
-    Type *rtype = right->GetType();
-    Type *ltype = left->GetType();
+    Type *rtype = right->TypeFinder();
+    Type *ltype = left->TypeFinder();
 
-    if (ltype->IsEquivalentTo(Type::intType) &&
-        rtype->IsEquivalentTo(Type::intType))
+    if (ltype->AreEquiv(Type::intType) &&
+        rtype->AreEquiv(Type::intType))
         return;
 
-    if (ltype->IsEquivalentTo(Type::doubleType) &&
-        rtype->IsEquivalentTo(Type::doubleType))
+    if (ltype->AreEquiv(Type::doubleType) &&
+        rtype->AreEquiv(Type::doubleType))
         return;
 }
 
-Type* EqualityExpr::GetType() {
-    Type *rtype = right->GetType();
-    Type *ltype = left->GetType();
+Type* EqualityExpr::TypeFinder() {
+    Type *rtype = right->TypeFinder();
+    Type *ltype = left->TypeFinder();
 
-    if (!rtype->IsEquivalentTo(ltype) &&
-        !ltype->IsEquivalentTo(rtype))
+    if (!rtype->AreEquiv(ltype) &&
+        !ltype->AreEquiv(rtype))
         return Type::errorType;
 
    return Type::boolType;
@@ -229,20 +227,20 @@ void EqualityExpr::Check() {
     right->Check();
 }
 
-Type* LogicalExpr::GetType() {
-    Type *rtype = right->GetType();
+Type* LogicalExpr::TypeFinder() {
+    Type *rtype = right->TypeFinder();
 
     if (left == NULL) {
-        if (rtype->IsEquivalentTo(Type::boolType))
+        if (rtype->AreEquiv(Type::boolType))
             return Type::boolType;
         else
             return Type::errorType;
     }
 
-    Type *ltype = left->GetType();
+    Type *ltype = left->TypeFinder();
 
-    if (ltype->IsEquivalentTo(Type::boolType) &&
-        rtype->IsEquivalentTo(Type::boolType))
+    if (ltype->AreEquiv(Type::boolType) &&
+        rtype->AreEquiv(Type::boolType))
         return Type::boolType;
 
     return Type::errorType;
@@ -254,25 +252,25 @@ void LogicalExpr::Check() {
 
     right->Check();
 
-    Type *rtype = right->GetType();
+    Type *rtype = right->TypeFinder();
 
     
     if (left == NULL) {
         return;
     }
 
-    Type *ltype = left->GetType();
+    Type *ltype = left->TypeFinder();
 
-    if (ltype->IsEquivalentTo(Type::boolType) &&
-        rtype->IsEquivalentTo(Type::boolType))
+    if (ltype->AreEquiv(Type::boolType) &&
+        rtype->AreEquiv(Type::boolType))
         return;
 }
 
-Type* AssignExpr::GetType() {
-    Type *ltype = left->GetType();
-    Type *rtype = right->GetType();
+Type* AssignExpr::TypeFinder() {
+    Type *ltype = left->TypeFinder();
+    Type *rtype = right->TypeFinder();
 
-    if (!rtype->IsEquivalentTo(ltype))
+    if (!rtype->AreEquiv(ltype))
         return Type::errorType;
 
     return ltype;
@@ -282,16 +280,16 @@ void AssignExpr::Check() {
     left->Check();
     right->Check();
 
-    Type *ltype = left->GetType();
-    Type *rtype = right->GetType();
+    Type *ltype = left->TypeFinder();
+    Type *rtype = right->TypeFinder();
 }
 
-Type* This::GetType() {
-    ClassDecl *d = GetClassDecl(scope);
+Type* This::TypeFinder() {
+    ClassDecl *d = Get_Class_Declaration(scope);
     if (d == NULL)
         return Type::errorType;
 
-    return d->GetType();
+    return d->TypeFinder();
 }
 
 void This::Check() {
@@ -302,29 +300,29 @@ ArrayAccess::ArrayAccess(yyltype loc, Expr *b, Expr *s) : LValue(loc) {
     (subscript=s)->SetParent(this);
 }
 
-Type* ArrayAccess::GetType() {
-    ArrayType *t = dynamic_cast<ArrayType*>(base->GetType());
+Type* ArrayAccess::TypeFinder() {
+    ArrayType *t = dynamic_cast<ArrayType*>(base->TypeFinder());
     if (t == NULL)
         return Type::errorType;
 
     return t->GetElemType();
 }
 
-void ArrayAccess::BuildScope(Scope *parent) {
+void ArrayAccess::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
-    base->BuildScope(scope);
-    subscript->BuildScope(scope);
+    base->ScopeMaker(scope);
+    subscript->ScopeMaker(scope);
 }
 
 void ArrayAccess::Check() {
     base->Check();
     subscript->Check();
     
-    if (base->GetType() == Type::errorType) // The base is an undeclared variable, so we don't need to further check the fields.
+    if (base->TypeFinder() == Type::errorType) 
         return;
     
-    ArrayType *t = dynamic_cast<ArrayType*>(base->GetType());
+    ArrayType *t = dynamic_cast<ArrayType*>(base->TypeFinder());
 }
      
 FieldAccess::FieldAccess(Expr *b, Identifier *f) 
@@ -335,23 +333,23 @@ FieldAccess::FieldAccess(Expr *b, Identifier *f)
     (field=f)->SetParent(this);
 }
 
-Type* FieldAccess::GetType() {
+Type* FieldAccess::TypeFinder() {
     Decl *d;
     ClassDecl *c;
     Type *t;
 
-    c = GetClassDecl(scope);
+    c = Get_Class_Declaration(scope);
 
     if (base == NULL) {
         if (c == NULL) {
-            d = GetFieldDecl(field, scope);
+            d = Get_Field_Declaration(field, scope);
         } else {
-            t = c->GetType();
-            d = GetFieldDecl(field, t);
+            t = c->TypeFinder();
+            d = Get_Field_Declaration(field, t);
         }
     } else {
-        t = base->GetType();
-        d = GetFieldDecl(field, t);
+        t = base->TypeFinder();
+        d = Get_Field_Declaration(field, t);
     }
 
     if (d == NULL)
@@ -360,44 +358,44 @@ Type* FieldAccess::GetType() {
     if (dynamic_cast<VarDecl*>(d) == NULL)
         return Type::errorType;
 
-    return static_cast<VarDecl*>(d)->GetType();
+    return static_cast<VarDecl*>(d)->TypeFinder();
 }
 
-void FieldAccess::BuildScope(Scope *parent) {
+void FieldAccess::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
     if (base != NULL)
-        base->BuildScope(scope);
+        base->ScopeMaker(scope);
 }
 
 void FieldAccess::Check() {
     if (base != NULL) {
         base->Check();
 
-        if (base->GetType() == Type::errorType) 
+        if (base->TypeFinder() == Type::errorType) 
             return;
     }
     Decl *d;
     Type *t;
 
     if (base == NULL) {
-        ClassDecl *c = GetClassDecl(scope);
+        ClassDecl *c = Get_Class_Declaration(scope);
         if (c == NULL) {
-            if ((d = GetFieldDecl(field, scope)) == NULL) {
+            if ((d = Get_Field_Declaration(field, scope)) == NULL) {
                 return;
             }
         } else {
-            t = c->GetType();
-            if ((d = GetFieldDecl(field, t)) == NULL) {
+            t = c->TypeFinder();
+            if ((d = Get_Field_Declaration(field, t)) == NULL) {
                 return;
             }
         }
     } else {
-        t = base->GetType();
-        if ((d = GetFieldDecl(field, t)) == NULL) {
+        t = base->TypeFinder();
+        if ((d = Get_Field_Declaration(field, t)) == NULL) {
             return;
         }
-        else if (GetClassDecl(scope) == NULL) {
+        else if (Get_Class_Declaration(scope) == NULL) {
             return;
         }
     }
@@ -411,21 +409,21 @@ Call::Call(yyltype loc, Expr *b, Identifier *f, List<Expr*> *a) : Expr(loc)  {
     (actuals=a)->SetParentAll(this);
 }
 
-Type* Call::GetType() {
+Type* Call::TypeFinder() {
     Decl *d;
 
     if (base == NULL) {
-        ClassDecl *c = GetClassDecl(scope);
+        ClassDecl *c = Get_Class_Declaration(scope);
         if (c == NULL) {
-            if ((d = GetFieldDecl(field, scope)) == NULL)
+            if ((d = Get_Field_Declaration(field, scope)) == NULL)
                 return Type::errorType;
         } else {
-            if ((d = GetFieldDecl(field, c->GetType())) == NULL)
+            if ((d = Get_Field_Declaration(field, c->TypeFinder())) == NULL)
                 return Type::errorType;
         }
     } else {
-        Type *t = base->GetType();
-        if ((d = GetFieldDecl(field, t)) == NULL) {
+        Type *t = base->TypeFinder();
+        if ((d = Get_Field_Declaration(field, t)) == NULL) {
 
             if (dynamic_cast<ArrayType*>(t) != NULL &&
                 strcmp("length", field->Name()) == 0)
@@ -441,14 +439,14 @@ Type* Call::GetType() {
     return static_cast<FnDecl*>(d)->GetReturnType();
 }
 
-void Call::BuildScope(Scope *parent) {
+void Call::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
     if (base != NULL)
-        base->BuildScope(scope);
+        base->ScopeMaker(scope);
 
     for (int i = 0, n = actuals->NumElements(); i < n; ++i)
-        actuals->Nth(i)->BuildScope(scope);
+        actuals->Nth(i)->ScopeMaker(scope);
 }
 
 void Call::Check() {
@@ -459,24 +457,24 @@ void Call::Check() {
     Type *t;
 
     if (base == NULL) {
-        ClassDecl *c = GetClassDecl(scope);
+        ClassDecl *c = Get_Class_Declaration(scope);
         if (c == NULL) {
-            if ((d = GetFieldDecl(field, scope)) == NULL) {
-                CheckActuals(d);
+            if ((d = Get_Field_Declaration(field, scope)) == NULL) {
+                ActualsFinder(d);
                 return;
             }
         } else {
-            t = c->GetType();
-            if ((d = GetFieldDecl(field, t)) == NULL) {
-                CheckActuals(d);
+            t = c->TypeFinder();
+            if ((d = Get_Field_Declaration(field, t)) == NULL) {
+                ActualsFinder(d);
                 return;
             }
         }
     } else {
-        t = base->GetType();
-        if (! t->typeDeclared) {return;} 
-        if ((d = GetFieldDecl(field, t)) == NULL) {  
-            CheckActuals(d);
+        t = base->TypeFinder();
+        if (! t->TD) {return;} 
+        if ((d = Get_Field_Declaration(field, t)) == NULL) {  
+            ActualsFinder(d);
 
             if (dynamic_cast<ArrayType*>(t) == NULL ||
                 strcmp("length", field->Name()) != 0)
@@ -484,10 +482,10 @@ void Call::Check() {
         }
     }
 
-    CheckActuals(d);
+    ActualsFinder(d);
 }
 
-void Call::CheckActuals(Decl *d) {
+void Call::ActualsFinder(Decl *d) {
     for (int i = 0, n = actuals->NumElements(); i < n; ++i)
         actuals->Nth(i)->Check();
 
@@ -504,8 +502,8 @@ void Call::CheckActuals(Decl *d) {
     }
 
     for (int i = 0, n = actuals->NumElements(); i < n; ++i) {
-        Type *given = actuals->Nth(i)->GetType();
-        Type *expected = formals->Nth(i)->GetType();
+        Type *given = actuals->Nth(i)->TypeFinder();
+        Type *expected = formals->Nth(i)->TypeFinder();
     }
 }
 
@@ -514,18 +512,18 @@ NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) {
   (cType=c)->SetParent(this);
 }
 
-Type* NewExpr::GetType() {
-    Decl *d = Program::gScope->table->Lookup(cType->Name());
+Type* NewExpr::TypeFinder() {
+    Decl *d = Program::G_Scope->table->Lookup(cType->Name());
     ClassDecl *c = dynamic_cast<ClassDecl*>(d);
 
     if (c == NULL)
         return Type::errorType;
 
-    return c->GetType();
+    return c->TypeFinder();
 }
 
 void NewExpr::Check() {
-    Decl *d = Program::gScope->table->Lookup(cType->Name());
+    Decl *d = Program::G_Scope->table->Lookup(cType->Name());
     ClassDecl *c = dynamic_cast<ClassDecl*>(d);
 }
 
@@ -535,32 +533,32 @@ NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc) {
     (elemType=et)->SetParent(this);
 }
 
-Type* NewArrayExpr::GetType() {
+Type* NewArrayExpr::TypeFinder() {
     return new ArrayType(elemType);
 }
 
-void NewArrayExpr::BuildScope(Scope *parent) {
+void NewArrayExpr::ScopeMaker(Scope *parent) {
     scope->SetParent(parent);
 
-    size->BuildScope(scope);
+    size->ScopeMaker(scope);
 }
 
 void NewArrayExpr::Check() {
     size->Check();
 
-    if (elemType->IsPrimitive() && !elemType->IsEquivalentTo(Type::voidType))
+    if (elemType->IsPrimitive() && !elemType->AreEquiv(Type::voidType))
         return;
 
-    Decl *d = Program::gScope->table->Lookup(elemType->Name());
+    Decl *d = Program::G_Scope->table->Lookup(elemType->Name());
     if (dynamic_cast<ClassDecl*>(d) == NULL)
-        elemType->ReportNotDeclaredIdentifier(LookingForType);
+        elemType->RepUndeclaredId(LookingForType);
 }
 
-Type* ReadIntegerExpr::GetType() {
+Type* ReadIntegerExpr::TypeFinder() {
     return Type::intType;
 }
 
-Type* ReadLineExpr::GetType() {
+Type* ReadLineExpr::TypeFinder() {
     return Type::stringType;
 }
 

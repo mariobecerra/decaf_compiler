@@ -25,12 +25,12 @@ class Expr : public Stmt
     Expr(yyltype loc) : Stmt(loc) {}
     Expr() : Stmt() {}
     
-    virtual Type* GetType() = 0; // With "virtual" you get "late binding". 
+    virtual Type* TypeFinder() = 0; // With "virtual" you get "late binding". 
 
   protected:
-    ClassDecl* GetClassDecl(Scope *s);
-    Decl* GetFieldDecl(Identifier *field, Type *base);
-    Decl* GetFieldDecl(Identifier *field, Scope *scope);
+    ClassDecl* Get_Class_Declaration(Scope *s);
+    Decl* Get_Field_Declaration(Identifier *field, Type *base);
+    Decl* Get_Field_Declaration(Identifier *field, Scope *scope);
 };
 
 /* This node type is used for those places where an expression is optional.
@@ -39,7 +39,7 @@ class Expr : public Stmt
 class EmptyExpr : public Expr
 {
   public:
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -51,7 +51,7 @@ class IntConstant : public Expr
   public:
     IntConstant(yyltype loc, int val);
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -63,7 +63,7 @@ class DoubleConstant : public Expr
   public:
     DoubleConstant(yyltype loc, double val);
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -75,7 +75,7 @@ class BoolConstant : public Expr
   public:
     BoolConstant(yyltype loc, bool val);
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -87,7 +87,7 @@ class StringConstant : public Expr
   public:
     StringConstant(yyltype loc, const char *val);
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -96,7 +96,7 @@ class NullConstant: public Expr
   public: 
     NullConstant(yyltype loc) : Expr(loc) {}
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -121,7 +121,7 @@ class CompoundExpr : public Expr
     CompoundExpr(Operator *op, Expr *rhs);             // for unary
     CompoundExpr(Expr *lhs, Operator *op);             // for postfix
     
-    virtual void BuildScope(Scope *parent);
+    virtual void ScopeMaker(Scope *parent);
     virtual void Check();
 };
 
@@ -130,7 +130,7 @@ class CompoundExpr : public Expr
 //   public:
 //     PostfixExpr(Expr *lhs, Operator *op) : CompoundExpr(lhs,op) {}
     
-//     Type* GetType();
+//     Type* TypeFinder();
 //     void Check();
 // };
 
@@ -140,7 +140,7 @@ class ArithmeticExpr : public CompoundExpr
     ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     ArithmeticExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -149,7 +149,7 @@ class RelationalExpr : public CompoundExpr
   public:
     RelationalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -159,7 +159,7 @@ class EqualityExpr : public CompoundExpr
     EqualityExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "EqualityExpr"; }
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -170,7 +170,7 @@ class LogicalExpr : public CompoundExpr
     LogicalExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
     const char *GetPrintNameForNode() { return "LogicalExpr"; }
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -180,7 +180,7 @@ class AssignExpr : public CompoundExpr
     AssignExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "AssignExpr"; }
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -195,7 +195,7 @@ class This : public Expr
   public:
     This(yyltype loc) : Expr(loc) {}
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -207,8 +207,8 @@ class ArrayAccess : public LValue
   public:
     ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
     
-    Type* GetType();
-    void BuildScope(Scope *parent);
+    Type* TypeFinder();
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -226,8 +226,8 @@ class FieldAccess : public LValue
   public:
     FieldAccess(Expr *base, Identifier *field); //ok to pass NULL base
     
-    Type* GetType();
-    void BuildScope(Scope *parent);
+    Type* TypeFinder();
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -245,12 +245,12 @@ class Call : public Expr
   public:
     Call(yyltype loc, Expr *base, Identifier *field, List<Expr*> *args);
     
-    Type* GetType();
-    void BuildScope(Scope *parent);
+    Type* TypeFinder();
+    void ScopeMaker(Scope *parent);
     void Check();
 
   private:
-    void CheckActuals(Decl *d);
+    void ActualsFinder(Decl *d);
 };
 
 class NewExpr : public Expr
@@ -261,7 +261,7 @@ class NewExpr : public Expr
   public:
     NewExpr(yyltype loc, NamedType *clsType);
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check();
 };
 
@@ -274,8 +274,8 @@ class NewArrayExpr : public Expr
   public:
     NewArrayExpr(yyltype loc, Expr *sizeExpr, Type *elemType);
     
-    Type* GetType();
-    void BuildScope(Scope *parent);
+    Type* TypeFinder();
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -284,7 +284,7 @@ class ReadIntegerExpr : public Expr
   public:
     ReadIntegerExpr(yyltype loc) : Expr(loc) {}
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 
@@ -293,7 +293,7 @@ class ReadLineExpr : public Expr
   public:
     ReadLineExpr(yyltype loc) : Expr (loc) {}
     
-    Type* GetType();
+    Type* TypeFinder();
     void Check() {}
 };
 

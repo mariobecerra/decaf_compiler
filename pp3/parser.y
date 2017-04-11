@@ -155,7 +155,7 @@ void yyerror(char *msg); // standard error-handling routine
 %nonassoc '='
 %left T_Or
 %left T_And
-%left T_Equal T_NotEqual
+%nonassoc T_Equal T_NotEqual
 %nonassoc T_LessEqual T_GreaterEqual '<' '>'
 %left '+' '-'
 %left '*' '/' '%'

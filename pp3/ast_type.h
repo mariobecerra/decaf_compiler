@@ -26,7 +26,7 @@ class Type : public Node
     static Type *intType, *doubleType, *boolType, *voidType,
                 *nullType, *stringType, *errorType;
 
-    bool typeDeclared;
+    bool TD;
     Type(yyltype loc) : Node(loc) {}
     Type() : Node() {}
     Type(const char *str);
@@ -34,8 +34,8 @@ class Type : public Node
     virtual void PrintToStream(std::ostream& out) { out << typeName; }
     friend std::ostream& operator<<(std::ostream& out, Type *t) { t->PrintToStream(out); return out; }
     virtual bool IsEqualTo(Type *other) { return this == other; }
-    virtual bool IsEquivalentTo(Type *other);
-    virtual void ReportNotDeclaredIdentifier(reasonT reason) { return; }
+    virtual bool AreEquiv(Type *other);
+    virtual void RepUndeclaredId(reasonT reason) { return; }
 
     virtual const char* Name() { return typeName; }
     virtual bool IsPrimitive() { return true; }
@@ -50,9 +50,9 @@ class NamedType : public Type
     NamedType(Identifier *i);
     
     void PrintToStream(std::ostream& out) { out << id; }
-    void ReportNotDeclaredIdentifier(reasonT reason);
+    void RepUndeclaredId(reasonT reason);
     bool IsEqualTo(Type *other);
-    bool IsEquivalentTo(Type *other);
+    bool AreEquiv(Type *other);
 
     const char* Name() { return id->Name(); }
     bool IsPrimitive() { return false; }
@@ -69,9 +69,9 @@ class ArrayType : public Type
     ArrayType(Type *elemType);
     
     void PrintToStream(std::ostream& out) { out << elemType << "[]"; }
-    void ReportNotDeclaredIdentifier(reasonT reason);
+    void RepUndeclaredId(reasonT reason);
     bool IsEqualTo(Type *other);
-    bool IsEquivalentTo(Type *other);
+    bool AreEquiv(Type *other);
 
     const char* Name() { return elemType->Name(); }
     bool IsPrimitive() { return false; }

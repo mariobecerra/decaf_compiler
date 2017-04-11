@@ -26,10 +26,10 @@ Type *Type::errorType  = new Type("error");
 Type::Type(const char *n) {
     Assert(n);
     typeName = strdup(n);
-    typeDeclared = true; // We don't know if the type has been declared until we check the related variable declaration. Thus, true by default.
+    TD = true; 
 }
 
-bool Type::IsEquivalentTo(Type *other) {
+bool Type::AreEquiv(Type *other) {
     if (IsEqualTo(Type::errorType))
         return true;
 
@@ -42,10 +42,10 @@ bool Type::IsEquivalentTo(Type *other) {
 NamedType::NamedType(Identifier *i) : Type(*i->GetLocation()) {
     Assert(i != NULL);
     (id=i)->SetParent(this);
-    typeDeclared = true;
+    TD = true;
 } 
 
-void NamedType::ReportNotDeclaredIdentifier(reasonT reason) {
+void NamedType::RepUndeclaredId(reasonT reason) {
     ReportError::IdentifierNotDeclared(id, reason);
 }
 
@@ -58,13 +58,13 @@ bool NamedType::IsEqualTo(Type *other) {
     return *id == *(namedOther->id);
 }
 
-bool NamedType::IsEquivalentTo(Type *other) {
+bool NamedType::AreEquiv(Type *other) {
     if (IsEqualTo(other))
         return true;
 
     NamedType *nType = this;
     Decl *lookup;
-    while ((lookup = Program::gScope->table->Lookup(nType->Name())) != NULL) {
+    while ((lookup = Program::G_Scope->table->Lookup(nType->Name())) != NULL) {
         ClassDecl *c = dynamic_cast<ClassDecl*>(lookup);
         if (c == NULL)
             return false;
@@ -89,7 +89,7 @@ bool NamedType::IsEquivalentTo(Type *other) {
 ArrayType::ArrayType(yyltype loc, Type *et) : Type(loc) {
     Assert(et != NULL);
     (elemType=et)->SetParent(this);
-    typeDeclared = true;
+    TD = true;
 }
 
 ArrayType::ArrayType(Type *et) : Type() {
@@ -97,8 +97,8 @@ ArrayType::ArrayType(Type *et) : Type() {
     (elemType=et)->SetParent(this);
 }
 
-void ArrayType::ReportNotDeclaredIdentifier(reasonT reason) {
-    elemType->ReportNotDeclaredIdentifier(reason);
+void ArrayType::RepUndeclaredId(reasonT reason) {
+    elemType->RepUndeclaredId(reason);
 }
 
 bool ArrayType::IsEqualTo(Type *other) {
@@ -110,11 +110,11 @@ bool ArrayType::IsEqualTo(Type *other) {
     return elemType->IsEqualTo(arrayOther->elemType);
 }
 
-bool ArrayType::IsEquivalentTo(Type *other) {
+bool ArrayType::AreEquiv(Type *other) {
     ArrayType *arrayOther = dynamic_cast<ArrayType*>(other);
 
     if (arrayOther == NULL)
         return false;
 
-    return elemType->IsEquivalentTo(arrayOther->elemType);
+    return elemType->AreEquiv(arrayOther->elemType);
 }

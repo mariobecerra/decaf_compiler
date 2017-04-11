@@ -39,12 +39,12 @@ class Decl : public Node
     Decl(Identifier *name);
     friend std::ostream& operator<<(std::ostream& out, Decl *d) { return out << d->id; }
     
-    virtual bool IsEquivalentTo(Decl *other);
+    virtual bool AreEquiv(Decl *other);
 
     const char* Name() { return id->Name(); }
     Scope* GetScope() { return scope; }
 
-    virtual void BuildScope(Scope *parent);
+    virtual void ScopeMaker(Scope *parent);
     virtual void Check() = 0;
 };
 
@@ -58,20 +58,15 @@ class VarDecl : public Decl
 {
   protected:
     Type *type;
-    //bool type_declared;
     
   public:
     VarDecl(Identifier *name, Type *type);
-    
-    bool IsEquivalentTo(Decl *other);
-
-    Type* GetType() { return type; }
+    bool AreEquiv(Decl *other);
+    Type* TypeFinder() { return type; }
     void Check();
-    //bool is_declared_type() { return type_declared; }
-    
     
   private:
-    void CheckType();
+    void FindType();
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -90,19 +85,19 @@ class ClassDecl : public Decl
   public:
     ClassDecl(Identifier *name, NamedType *extends, 
               List<NamedType*> *implements, List<Decl*> *members);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
-    NamedType* GetType() { return new NamedType(id); }
+    NamedType* TypeFinder() { return new NamedType(id); }
     NamedType* GetExtends() { return extends; }
     List<NamedType*>* GetImplements() { return implements; }
 
   private:
-    void CheckExtends();
-    void CheckImplements();
-    void CheckExtendedMembers(NamedType *extType);
-    void CheckImplementedMembers(NamedType *impType);
-    void CheckAgainstScope(Scope *other);
-    void CheckImplementsInterfaces();
+    void AgScopeFinder(Scope *other);
+    void ImplementsFinder();
+    void ImplementedMembersFinder(NamedType *impType);
+    void ExtendedMembersFinder(NamedType *extType);
+    void ImplementsInterfacesFinder();
+    void ExtendsFinder();
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -118,9 +113,9 @@ class InterfaceDecl : public Decl
     
   public:
     InterfaceDecl(Identifier *name, List<Decl*> *members);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
-    Type* GetType() { return new NamedType(id); }
+    Type* TypeFinder() { return new NamedType(id); }
     List<Decl*>* GetMembers() { return members; }
 };
 
@@ -140,10 +135,10 @@ class FnDecl : public Decl
   public:
     FnDecl(Identifier *name, Type *returnType, List<VarDecl*> *formals);
     void SetFunctionBody(Stmt *b);
-    bool IsEquivalentTo(Decl *other);
+    bool AreEquiv(Decl *other);
     Type* GetReturnType() { return returnType; }
     List<VarDecl*>* GetFormals() { return formals; }
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 

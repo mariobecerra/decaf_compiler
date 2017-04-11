@@ -47,7 +47,7 @@ class Scope
     Scope* GetParent() { return parent; }
 
     void SetClassDecl(ClassDecl *d) { classDecl = d; }
-    ClassDecl* GetClassDecl() { return classDecl; }
+    ClassDecl* Get_Class_Declaration() { return classDecl; }
 
     void SetLoopStmt(LoopStmt *s) { loopStmt = s; }
     LoopStmt* GetLoopStmt() { return loopStmt; }
@@ -58,7 +58,7 @@ class Scope
     void SetFnDecl(FnDecl *d) { fnDecl = d; }
     FnDecl* GetFnDecl() { return fnDecl; }
 
-    int AddDecl(Decl *decl);
+    int Add_Declaration(Decl *decl);
     friend std::ostream& operator<<(std::ostream& out, Scope *s);
 };
    
@@ -68,12 +68,12 @@ class Program : public Node
      List<Decl*> *decls;
      
   public:
-     static Scope *gScope;
+     static Scope *G_Scope;
      Program(List<Decl*> *declList);
      void Check();
   
   private:
-     void BuildScope();
+     void ScopeMaker();
 };
 
 class Stmt : public Node
@@ -84,7 +84,7 @@ class Stmt : public Node
   public:
      Stmt() : Node(), scope(new Scope) {}
      Stmt(yyltype loc) : Node(loc), scope(new Scope) {}
-     virtual void BuildScope(Scope *parent);
+     virtual void ScopeMaker(Scope *parent);
      virtual void Check() = 0;
 };
 
@@ -96,7 +96,7 @@ class StmtBlock : public Stmt
     
   public:
     StmtBlock(List<VarDecl*> *variableDeclarations, List<Stmt*> *statements);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -109,7 +109,7 @@ class ConditionalStmt : public Stmt
   
   public:
     ConditionalStmt(Expr *testExpr, Stmt *body);
-    virtual void BuildScope(Scope *parent);
+    virtual void ScopeMaker(Scope *parent);
     virtual void Check();
 };
 
@@ -118,7 +118,7 @@ class LoopStmt : public ConditionalStmt
   public:
     LoopStmt(Expr *testExpr, Stmt *body)
             : ConditionalStmt(testExpr, body) {}
-    virtual void BuildScope(Scope *parent);
+    virtual void ScopeMaker(Scope *parent);
 };
 
 class ForStmt : public LoopStmt 
@@ -143,7 +143,7 @@ class IfStmt : public ConditionalStmt
   
   public:
     IfStmt(Expr *test, Stmt *thenBody, Stmt *elseBody);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -161,7 +161,7 @@ class ReturnStmt : public Stmt
   
   public:
     ReturnStmt(yyltype loc, Expr *expr);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -172,7 +172,7 @@ class PrintStmt : public Stmt
     
   public:
     PrintStmt(List<Expr*> *arguments);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
@@ -187,7 +187,7 @@ class SwitchStmt : public Stmt
 
       public:
         CaseStmt(Expr *intConst, List<Stmt*> *caseBody);
-        void BuildScope(Scope *parent);
+        void ScopeMaker(Scope *parent);
         void Check();
     };
 
@@ -197,7 +197,7 @@ class SwitchStmt : public Stmt
 
   public:
     SwitchStmt(Expr *expr, List<CaseStmt*> *caseStmts);
-    void BuildScope(Scope *parent);
+    void ScopeMaker(Scope *parent);
     void Check();
 };
 
