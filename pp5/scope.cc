@@ -46,7 +46,7 @@ class Scope
 
 
 scopeST::scopeST() {
-    PrintDebug("sttrace", "scopeST constructor.\n");
+    
     
     scopes = new std::vector<Scope *>;
     scopes->clear();
@@ -65,7 +65,7 @@ scopeST::scopeST() {
 
 
 void scopeST::ReEnter() {
-    PrintDebug("sttrace", "======== Reenter scopeST ========\n");
+    
     activeScopes->clear();
     activeScopes->push_back(0);
 
@@ -76,7 +76,7 @@ void scopeST::ReEnter() {
 
 
 void scopeST::BuildScope() {
-    PrintDebug("sttrace", "Build new scope %d.\n", scope_cnt + 1);
+    
     scope_cnt++;
     scopes->push_back(new Scope());
     activeScopes->push_back(scope_cnt);
@@ -85,7 +85,7 @@ void scopeST::BuildScope() {
 
 
 void scopeST::BuildScope(const char *key) {
-    PrintDebug("sttrace", "Build new scope %d.\n", scope_cnt + 1);
+    
     scope_cnt++;
     scopes->push_back(new Scope());
     scopes->at(scope_cnt)->SetOwner(key);
@@ -95,7 +95,7 @@ void scopeST::BuildScope(const char *key) {
 
 
 void scopeST::EnterScope() {
-    PrintDebug("sttrace", "Enter scope %d.\n", scope_cnt + 1);
+    
     scope_cnt++;
     activeScopes->push_back(scope_cnt);
     cur_scope = scope_cnt;
@@ -114,7 +114,7 @@ int scopeST::FindScopeFromOwnerName(const char *key) {
         }
     }
 
-    PrintDebug("sttrace", "From %s find scope %d.\n", key, scope);
+    
     return scope;
 }
 
@@ -123,7 +123,7 @@ Decl * scopeST::Lookup(Identifier *id) {
     Decl *d = NULL;
     const char *parent = NULL;
     const char *key = id->GetIdName();
-    PrintDebug("sttrace", "Lookup %s from active scopes %d.\n", key, cur_scope);
+    
 
     
 
@@ -168,7 +168,7 @@ Decl * scopeST::LookupParent(Identifier *id) {
     const char *parent = NULL;
     const char *key = id->GetIdName();
     Scope *s = scopes->at(cur_scope);
-    PrintDebug("sttrace", "Lookup %s in parent of %d.\n", key, cur_scope);
+    
 
     
     while (s->HasParent()) {
@@ -199,7 +199,7 @@ Decl * scopeST::LookupInterface(Identifier *id) {
     const char *key = id->GetIdName();
     int scope;
     Scope *s = scopes->at(cur_scope);
-    PrintDebug("sttrace", "Lookup %s in interface of %d.\n", key, cur_scope);
+    
 
     
     if (s->HasInterface()) {
@@ -228,7 +228,7 @@ Decl * scopeST::LookupField(Identifier *base, Identifier *field) {
     Decl *d = NULL;
     const char *b = base->GetIdName();
     const char *f = field->GetIdName();
-    PrintDebug("sttrace", "Lookup %s from field %s\n", f, b);
+    
 
     
     int scope = FindScopeFromOwnerName(b);
@@ -265,7 +265,7 @@ Decl * scopeST::LookupField(Identifier *base, Identifier *field) {
 
 
 Decl * scopeST::LookupThis() {
-    PrintDebug("sttrace", "Lookup This\n");
+    
     Decl *d = NULL;
     
     for (int i = activeScopes->size(); i > 0; --i) {
@@ -274,7 +274,7 @@ Decl * scopeST::LookupThis() {
         Scope *s = scopes->at(scope);
 
         if (s->HasOwner()) {
-            PrintDebug("sttrace", "Lookup This as %s\n", s->GetOwner());
+            
             
             Scope *s0 = scopes->at(0);
             if (s0->HasHT()) {
@@ -290,7 +290,7 @@ Decl * scopeST::LookupThis() {
 int scopeST::InsertSymbol(Decl *decl) {
     const char *key = decl->GetId()->GetIdName();
     Scope *s = scopes->at(cur_scope);
-    PrintDebug("sttrace", "Insert %s to scope %d\n", key, cur_scope);
+    
 
     if (!s->HasHT()) {
         s->BuildHT();
@@ -305,7 +305,7 @@ bool scopeST::LocalLookup(Identifier *id) {
     Decl *d = NULL;
     const char *key = id->GetIdName();
     Scope *s = scopes->at(cur_scope);
-    PrintDebug("sttrace", "LocalLookup %s from scope %d\n", key, cur_scope);
+    
 
     if (s->HasHT()) {
         d = s->GetHT()->Lookup(key);
@@ -316,7 +316,7 @@ bool scopeST::LocalLookup(Identifier *id) {
 
 
 void scopeST::ExitScope() {
-    PrintDebug("sttrace", "Exit scope %d\n", cur_scope);
+    
     activeScopes->pop_back();
     cur_scope = activeScopes->back();
 }

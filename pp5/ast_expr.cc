@@ -733,7 +733,7 @@ void Call::Check(checkT c) {
 }
 
 void Call::Emit() {
-    PrintDebug("tac+", "Emit Call %s.", field->GetIdName());
+    
     
 
     if (base) base->Emit();

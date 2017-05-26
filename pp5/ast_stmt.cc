@@ -22,22 +22,22 @@ void Program::Check() {
     
     ScopeM = new scopeST(); decls->CheckAll(E_BuildST);
     if (IsDebugOn("st")) { ScopeM->Print(); }
-    PrintDebug("ast+", "BuildST finished.");
+    
     if (IsDebugOn("ast+")) { this->Print(0); }
 
     
     ScopeM->ReEnter(); decls->CheckAll(E_CheckDecl);
-    PrintDebug("ast+", "CheckDecl finished.");
+    
     if (IsDebugOn("ast+")) { this->Print(0); }
 
     
     ScopeM->ReEnter(); decls->CheckAll(E_CheckInherit);
-    PrintDebug("ast+", "CheckInherit finished.");
+    
     if (IsDebugOn("ast+")) { this->Print(0); }
 
     
     ScopeM->ReEnter(); decls->CheckAll(E_CheckType);
-    PrintDebug("ast+", "CheckType finished.");
+    
     if (IsDebugOn("ast+")) { this->Print(0); }
 }
 
@@ -60,7 +60,7 @@ void Program::Emit() {
         return;
     }
 
-    PrintDebug("tac+", "Assign offset for class/interface members & global.");
+    
     
     for (int i = 0; i < decls->NumElements(); i++) {
         decls->Nth(i)->AssignOffset();
@@ -71,7 +71,7 @@ void Program::Emit() {
     }
     if (IsDebugOn("tac+")) { this->Print(0); }
 
-    PrintDebug("tac+", "Begin Emitting TAC for Program.");
+    
     decls->EmitAll();
     if (IsDebugOn("tac+")) { this->Print(0); }
 
@@ -324,12 +324,12 @@ void BreakStmt::Emit() {
     while (n->GetParent()) {
         if (n->IsLoopStmt()) {
             const char *l = dynamic_cast<LoopStmt*>(n)->GetEndLoopLabel();
-            PrintDebug("tac+", "endloop label %s.", l);
+            
             CG->GenGoto(l);
             return;
         } else if (n->IsSwitchStmt()) {
             const char *l = dynamic_cast<SwitchStmt*>(n)->GetEndSwitchLabel();
-            PrintDebug("tac+", "endswitch label %s.", l);
+            
             CG->GenGoto(l);
             return;
         }

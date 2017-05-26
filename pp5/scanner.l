@@ -7,9 +7,9 @@
 
 #include <string.h>
 #include "scanner.h"
-#include "utility.h" // for PrintDebug()
+#include "utility.h"
 #include "errors.h"
-#include "parser.h" // for token codes, yylval
+#include "parser.h"
 #include "list.h"
 
 #define TAB_SIZE 8

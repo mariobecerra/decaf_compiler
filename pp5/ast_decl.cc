@@ -322,13 +322,13 @@ void ClassDecl::AssignOffset() {
         }
     }
 
-    PrintDebug("tac+", "Class Methods of %s:", id->GetIdName());
+    
     for (int i = 0; i < methods->NumElements(); i++) {
-        PrintDebug("tac+", "%s", methods->Nth(i)->GetId()->GetIdName());
+        
     }
-    PrintDebug("tac+", "Class Vars of %s:", id->GetIdName());
+    
     for (int i = 0; i < var_members->NumElements(); i++) {
-        PrintDebug("tac+", "%s", var_members->Nth(i)->GetId()->GetIdName());
+        
     }
 
     
@@ -533,7 +533,7 @@ void FnDecl::AssignMemberOffset(bool inClass, int offset) {
 }
 
 void FnDecl::Emit() {
-    PrintDebug("tac+", "Begin Emitting TAC in FnDecl.");
+    
     if (returnType == Type::doubleType) {
         ReportError::Formatted(this->GetLocation(),
                 "Double type is not supported by compiler back end yet.");
