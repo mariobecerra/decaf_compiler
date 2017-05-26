@@ -10,7 +10,7 @@ SPIM=spim
 COMPILER=dcc
 
 if [ $# -lt 1 ]; then
-  echo "Run script error: The run script takes one argument, the path to a Decaf file."
+  # echo "Run script error: The run script takes one argument, the path to a Decaf file."
   exit 1;
 fi
 if [ ! -x $COMPILER ]; then
@@ -23,11 +23,11 @@ if [ ! -r $1 ]; then
   exit 1;
 fi
 
-echo "-- $COMPILER <$1 >tmp.asm"
+# echo "-- $COMPILER <$1 >tmp.asm"
 ./$COMPILER < $1 > tmp.asm 2>tmp.errors
 if [ $? -ne 0 -o -s tmp.errors ]; then
-  echo "Run script error: errors reported from $COMPILER compiling '$1'."
-  echo " "
+  # echo "Run script error: errors reported from $COMPILER compiling '$1'."
+  # echo " "
   cat tmp.errors
   exit 1;
 fi
@@ -35,10 +35,10 @@ fi
 #append the defs to the end
 cat defs.asm >> tmp.asm
 
-echo "-- spim -file tmp.asm"
-echo " "
+# echo "-- spim -file tmp.asm"
+# echo " "
 $SPIM -file tmp.asm
 
-echo " "
-echo " "
+# echo " "
+# echo " "
 exit 0;
