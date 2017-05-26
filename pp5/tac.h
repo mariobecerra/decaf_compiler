@@ -43,13 +43,15 @@ class Location
     const char *variableName;
     Segment segment;
     int offset;
+    Location* base;
 	  
   public:
     Location(Segment seg, int offset, const char *name);
 
-    const char *GetName()           { return variableName; }
-    Segment GetSegment()            { return segment; }
-    int GetOffset()                 { return offset; }
+    const char *GetName() const     { return variableName; }
+    Segment GetSegment() const      { return segment; }
+    int GetOffset() const           { return offset; }
+    Location* GetBase() const       { return base; }
 };
  
 
@@ -64,7 +66,7 @@ class Instruction {
     public:
 	virtual void Print();
 	virtual void EmitSpecific(Mips *mips) = 0;
-	virtual void Emit(Mips *mips);
+	void Emit(Mips *mips);
 };
 
   
@@ -86,11 +88,10 @@ class Instruction {
   class EndFunc;
   class Return;
   class PushParam;
-  class RemoveParams;
+  class PopParams;
   class LCall;
   class ACall;
   class VTable;
-
 
 
 
@@ -162,6 +163,7 @@ class Label: public Instruction {
     Label(const char *label);
     void Print();
     void EmitSpecific(Mips *mips);
+    const char* text() const { return label; }
 };
 
 class Goto: public Instruction {
@@ -169,6 +171,7 @@ class Goto: public Instruction {
   public:
     Goto(const char *label);
     void EmitSpecific(Mips *mips);
+    const char* branch_label() const { return label; }
 };
 
 class IfZ: public Instruction {
@@ -177,6 +180,7 @@ class IfZ: public Instruction {
   public:
     IfZ(Location *test, const char *label);
     void EmitSpecific(Mips *mips);
+    const char* branch_label() const { return label; }
 };
 
 class BeginFunc: public Instruction {

@@ -8,7 +8,7 @@
 #include <cstring>
 
 Location::Location(Segment s, int o, const char *name) :
-  variableName(strdup(name)), segment(s), offset(o){}
+  variableName(strdup(name)), segment(s), offset(o), base(NULL) {}
 
  
 void Instruction::Print() {
@@ -16,6 +16,7 @@ void Instruction::Print() {
 }
 
 void Instruction::Emit(Mips *mips) {
+  Mips::CurrentInstruction ci(*mips, this);
   if (*printed)
     mips->Emit("# %s", printed);   // emit TAC as comment into assembly
   EmitSpecific(mips);
@@ -89,6 +90,7 @@ Store::Store(Location *d, Location *s, int off)
 void Store::EmitSpecific(Mips *mips) {
   mips->EmitStore(dst, src, offset);
 }
+
  
 const char * const BinaryOp::opName[BinaryOp::NumOps]  = {"+", "-", "*", "/", "%", "==", "<", "&&", "||"};;
 
@@ -110,7 +112,6 @@ void BinaryOp::EmitSpecific(Mips *mips) {
   mips->EmitBinaryOp(code, dst, op1, op2);
 }
 
-
 Label::Label(const char *l) : label(strdup(l)) {
   Assert(label != NULL);
   *printed = '\0';
@@ -121,7 +122,6 @@ void Label::Print() {
 void Label::EmitSpecific(Mips *mips) {
   mips->EmitLabel(label);
 }
-
  
 Goto::Goto(const char *l) : label(strdup(l)) {
   Assert(label != NULL);
@@ -139,7 +139,6 @@ IfZ::IfZ(Location *te, const char *l)
 void IfZ::EmitSpecific(Mips *mips) {	  
   mips->EmitIfZ(test, label);
 }
-
 
 BeginFunc::BeginFunc() {
   sprintf(printed,"BeginFunc (unassigned)");
@@ -159,7 +158,6 @@ EndFunc::EndFunc() : Instruction() {
 void EndFunc::EmitSpecific(Mips *mips) {
   mips->EmitEndFunction();
 }
-
  
 Return::Return(Location *v) : val(v) {
   sprintf(printed, "Return %s", val? val->GetName() : "");
@@ -167,7 +165,6 @@ Return::Return(Location *v) : val(v) {
 void Return::EmitSpecific(Mips *mips) {	  
   mips->EmitReturn(val);
 }
-
 
 PushParam::PushParam(Location *p)
   :  param(p) {
@@ -185,7 +182,6 @@ PopParams::PopParams(int nb)
 void PopParams::EmitSpecific(Mips *mips) {
   mips->EmitPopParams(numBytes);
 } 
-
 
 
 LCall::LCall(const char *l, Location *d)
@@ -206,7 +202,6 @@ void ACall::EmitSpecific(Mips *mips) {
   mips->EmitACall(dst, methodAddr);
 } 
 
-
 VTable::VTable(const char *l, List<const char *> *m)
   : methodLabels(m), label(strdup(l)) {
   Assert(methodLabels != NULL && label != NULL);
@@ -222,4 +217,3 @@ void VTable::Print() {
 void VTable::EmitSpecific(Mips *mips) {
   mips->EmitVTable(label, methodLabels);
 }
-

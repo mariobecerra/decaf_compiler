@@ -19,6 +19,9 @@
 
 class NamedType; // for new
 class Type; // for NewArray
+class CodeGenerator;
+class ClassDecl;
+class FnDecl;
 
 
 class Expr : public Stmt 
@@ -26,6 +29,18 @@ class Expr : public Stmt
   public:
     Expr(yyltype loc) : Stmt(loc) {}
     Expr() : Stmt() {}
+
+    virtual Type* GetType() = 0;
+    void BuildScope() { /* Empty */ }
+    virtual Location* Emit(CodeGenerator *cg) = 0;
+    virtual int GetMemBytes() = 0;
+
+  protected:
+    Decl* GetFieldDecl(Identifier *field, Expr *b);
+    Decl* GetFieldDecl(Identifier *field, Node *n);
+    Decl* GetFieldDecl(Identifier *field, Type *t);
+    ClassDecl* GetClassDecl();
+    Location* GetThisLoc();
 };
 
 /* This node type is used for those places where an expression is optional.
@@ -34,6 +49,9 @@ class Expr : public Stmt
 class EmptyExpr : public Expr
 {
   public:
+    Type* GetType() { return NULL; }
+    Location* Emit(CodeGenerator *cg) { return NULL; }
+    int GetMemBytes() { return 0; }
 };
 
 class IntConstant : public Expr 
@@ -43,6 +61,10 @@ class IntConstant : public Expr
   
   public:
     IntConstant(yyltype loc, int val);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class DoubleConstant : public Expr 
@@ -52,6 +74,10 @@ class DoubleConstant : public Expr
     
   public:
     DoubleConstant(yyltype loc, double val);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class BoolConstant : public Expr 
@@ -61,6 +87,10 @@ class BoolConstant : public Expr
     
   public:
     BoolConstant(yyltype loc, bool val);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class StringConstant : public Expr 
@@ -70,12 +100,20 @@ class StringConstant : public Expr
     
   public:
     StringConstant(yyltype loc, const char *val);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class NullConstant: public Expr 
 {
   public: 
     NullConstant(yyltype loc) : Expr(loc) {}
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class Operator : public Node 
@@ -86,6 +124,8 @@ class Operator : public Node
   public:
     Operator(yyltype loc, const char *tok);
     friend std::ostream& operator<<(std::ostream& out, Operator *o) { return out << o->tokenString; }
+
+    const char *GetTokenString() { return tokenString; }
  };
  
 class CompoundExpr : public Expr
@@ -97,6 +137,10 @@ class CompoundExpr : public Expr
   public:
     CompoundExpr(Expr *lhs, Operator *op, Expr *rhs); // for binary
     CompoundExpr(Operator *op, Expr *rhs);             // for unary
+
+    virtual Type* GetType() = 0;
+    virtual Location* Emit(CodeGenerator *cg) = 0;
+    virtual int GetMemBytes() = 0;
 };
 
 class ArithmeticExpr : public CompoundExpr 
@@ -104,12 +148,34 @@ class ArithmeticExpr : public CompoundExpr
   public:
     ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     ArithmeticExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+  private:
+    Location* EmitUnary(CodeGenerator *cg);
+    int GetMemBytesUnary();
+
+    Location* EmitBinary(CodeGenerator *cg);
+    int GetMemBytesBinary();
 };
 
 class RelationalExpr : public CompoundExpr 
 {
   public:
     RelationalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+  private:
+    Location* EmitLess(CodeGenerator *cg, Expr *l, Expr *r);
+    int GetMemBytesLess(Expr *l, Expr *r);
+
+    Location* EmitLessEqual(CodeGenerator *cg, Expr *l, Expr *r);
+    int GetMemBytesLessEqual(Expr *l, Expr *r);
 };
 
 class EqualityExpr : public CompoundExpr 
@@ -117,6 +183,17 @@ class EqualityExpr : public CompoundExpr
   public:
     EqualityExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "EqualityExpr"; }
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+  private:
+    Location* EmitEqual(CodeGenerator *cg);
+    int GetMemBytesEqual();
+
+    Location* EmitNotEqual(CodeGenerator *cg);
+    int GetMemBytesNotEqual();
 };
 
 class LogicalExpr : public CompoundExpr 
@@ -125,6 +202,20 @@ class LogicalExpr : public CompoundExpr
     LogicalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     LogicalExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
     const char *GetPrintNameForNode() { return "LogicalExpr"; }
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+  private:
+    Location* EmitAnd(CodeGenerator *cg);
+    int GetMemBytesAnd();
+
+    Location* EmitOr(CodeGenerator *cg);
+    int GetMemBytesOr();
+
+    Location* EmitNot(CodeGenerator *cg);
+    int GetMemBytesNot();
 };
 
 class AssignExpr : public CompoundExpr 
@@ -132,18 +223,33 @@ class AssignExpr : public CompoundExpr
   public:
     AssignExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "AssignExpr"; }
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class LValue : public Expr 
 {
   public:
     LValue(yyltype loc) : Expr(loc) {}
+
+    virtual Type* GetType() = 0;
+    virtual Location* Emit(CodeGenerator *cg) = 0;
+    virtual int GetMemBytes() = 0;
+
+    virtual Location* EmitStore(CodeGenerator *cg, Location *val) = 0;
+    virtual int GetMemBytesStore() = 0;
 };
 
 class This : public Expr 
 {
   public:
     This(yyltype loc) : Expr(loc) {}
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class ArrayAccess : public LValue 
@@ -153,6 +259,21 @@ class ArrayAccess : public LValue
     
   public:
     ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+    Location* EmitStore(CodeGenerator *cg, Location *val);
+    int GetMemBytesStore();
+
+  private:
+    Location* EmitAddr(CodeGenerator *cg);
+    int GetMemBytesAddr();
+
+    Location* EmitRuntimeSubscriptCheck(CodeGenerator *cg, Location *siz,
+                                        Location *sub);
+    int GetMemBytesRuntimeSubscriptCheck();
 };
 
 /* Note that field access is used both for qualified names
@@ -168,6 +289,23 @@ class FieldAccess : public LValue
     
   public:
     FieldAccess(Expr *base, Identifier *field); //ok to pass NULL base
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+    Location* EmitStore(CodeGenerator *cg, Location *val);
+    int GetMemBytesStore();
+
+  private:
+    VarDecl* GetDecl();
+
+    Location* EmitMemLoc(CodeGenerator *cg, VarDecl *fieldDecl);
+    int GetMemBytesMemLoc(VarDecl *fieldDecl);
+
+    Location* EmitMemLocStore(CodeGenerator *cg, Location *val,
+                              VarDecl *fieldDecl);
+    int GetMemBytesMemLocStore(VarDecl *fieldDecl);
 };
 
 /* Like field access, call is used both for qualified base.field()
@@ -183,6 +321,24 @@ class Call : public Expr
     
   public:
     Call(yyltype loc, Expr *base, Identifier *field, List<Expr*> *args);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+  private:
+    Location* EmitLabel(CodeGenerator *cg);
+    int GetMemBytesLabel();
+
+    Location* EmitArrayLength(CodeGenerator *cg);
+    int GetMemBytesArrayLength();
+
+    Location* EmitDynamicDispatch(CodeGenerator *cg, Location *b);
+    int GetMemBytesDynamicDispatch();
+
+    FnDecl* GetDecl();
+    bool IsArrayLengthCall();
+    bool IsMethodCall();
 };
 
 class NewExpr : public Expr
@@ -192,6 +348,10 @@ class NewExpr : public Expr
     
   public:
     NewExpr(yyltype loc, NamedType *clsType);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class NewArrayExpr : public Expr
@@ -202,18 +362,34 @@ class NewArrayExpr : public Expr
     
   public:
     NewArrayExpr(yyltype loc, Expr *sizeExpr, Type *elemType);
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
+
+  private:
+    Location* EmitRuntimeSizeCheck(CodeGenerator *cg, Location *siz);
+    int GetMemBytesRuntimeSizeCheck();
 };
 
 class ReadIntegerExpr : public Expr
 {
   public:
     ReadIntegerExpr(yyltype loc) : Expr(loc) {}
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
 class ReadLineExpr : public Expr
 {
   public:
     ReadLineExpr(yyltype loc) : Expr (loc) {}
+
+    Type* GetType();
+    Location* Emit(CodeGenerator *cg);
+    int GetMemBytes();
 };
 
     

@@ -30,16 +30,36 @@ Type::Type(const char *n) {
 
 
 
+BuiltIn Type::GetPrint() {
+    if (IsEquivalentTo(Type::intType))
+        return PrintInt;
+    else if (IsEquivalentTo(Type::stringType))
+        return PrintString;
+    else if (IsEquivalentTo(Type::boolType))
+        return PrintBool;
+
+    return NumBuiltIns;
+}
 	
 NamedType::NamedType(Identifier *i) : Type(*i->GetLocation()) {
     Assert(i != NULL);
     (id=i)->SetParent(this);
 } 
 
+BuiltIn NamedType::GetPrint() {
+    return NumBuiltIns;
+}
 
 ArrayType::ArrayType(yyltype loc, Type *et) : Type(loc) {
     Assert(et != NULL);
     (elemType=et)->SetParent(this);
 }
 
+ArrayType::ArrayType(Type *et) : Type() {
+    Assert(et != NULL);
+    (elemType=et)->SetParent(this);
+}
 
+BuiltIn ArrayType::GetPrint() {
+    return elemType->GetPrint();
+}

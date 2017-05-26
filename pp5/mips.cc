@@ -69,7 +69,6 @@ void Mips::FillRegister(Location *src, Register reg)
 }
 
 
-
 /* Method: Emit
  * ------------
  * General purpose helper used to emit assembly instructions in
@@ -100,9 +99,9 @@ void Mips::Emit(const char *fmt, ...)
  */
 void Mips::EmitLoadConstant(Location *dst, int val)
 {
-  Register reg = rd;
-  Emit("li %s, %d\t\t# load constant value %d into %s", regs[reg].name,
-	 val, val, regs[reg].name);
+  Register r = rd; 
+  Emit("li %s, %d\t\t# load constant value %d into %s", regs[r].name,
+	 val, val, regs[r].name);
   SpillRegister(dst, rd);
 }
 
@@ -211,7 +210,8 @@ void Mips::EmitBinaryOp(BinaryOp::OpCode code, Location *dst,
  * wipe the slate clean.
  */
 void Mips::EmitLabel(const char *label)
-{ 
+{
+ 
   Emit("%s:", label);
 }
 
@@ -225,6 +225,7 @@ void Mips::EmitLabel(const char *label)
  */
 void Mips::EmitGoto(const char *label)
 {
+ 
   Emit("b %s\t\t# unconditional branch", label);
 }
 
@@ -237,7 +238,7 @@ void Mips::EmitGoto(const char *label)
  * all registers here.
  */
 void Mips::EmitIfZ(Location *test, const char *label)
-{ 
+{
   FillRegister(test, rs);
   Emit("beqz %s, %s\t# branch if %s is zero ", regs[rs].name, label,
 	 test->GetName());
@@ -464,6 +465,7 @@ Mips::Mips() {
   regs[s6] = (RegContents){false, NULL, "$s6", true};
   regs[s7] = (RegContents){false, NULL, "$s7", true};
   rs = t0; rt = t1; rd = t2;
+
 }
 const char *Mips::mipsName[BinaryOp::NumOps];
 

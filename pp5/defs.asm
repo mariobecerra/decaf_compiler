@@ -76,7 +76,7 @@ bloop1:
 	addi $t3, 1
 	b bloop1
 eloop1:
-
+	
 	#Determine length string 2
 	lw $t1, 8($fp)
 	li $t4,0
@@ -89,17 +89,19 @@ bloop2:
 eloop2:
 	bne $t3,$t4,end1       #Check String Lengths Same
 
-	lw $t0, 4($fp)       
+	lw $t0, 4($fp)	
 	lw $t1, 8($fp)
 	li $t3, 0     		
 bloop3:	
 	lb $t5, ($t0) 
 	lb $t6, ($t1) 
 	bne $t5, $t6, end1
+	beqz $t5, eloop3       # if zero, then we hit the end of both strings
 	addi $t3, 1
 	addi $t0, 1
 	addi $t1, 1
-	bne $t3,$t4,bloop3
+	#bne $t3,$t4,bloop3
+	b bloop3
 eloop3:	li $v0,1
 
 end1:	move $sp, $fp         # pop callee frame off stack
@@ -112,6 +114,7 @@ _Halt:
         syscall
 
 _ReadInteger:
+	subu $sp, $sp, 8      # decrement sp to make space to save ra, fp
 	sw $fp, 8($sp)        # save fp
 	sw $ra, 4($sp)        # save ra
 	addiu $fp, $sp, 8     # set up new fp
@@ -125,16 +128,24 @@ _ReadInteger:
         
 
 _ReadLine:
+	subu $sp, $sp, 8      # decrement sp to make space to save ra, fp
 	sw $fp, 8($sp)        # save fp
 	sw $ra, 4($sp)        # save ra
 	addiu $fp, $sp, 8     # set up new fp
 	subu $sp, $sp, 4      # decrement sp to make space for locals/temps
-	li $a1, 40
-	la $a0, SPACE
-	li $v0, 8
+	# allocate space to store memory
+	li $a0, 128           # request 128 bytes
+	li $v0, 9	      # syscall "sbrk" for memory allocation
+	syscall               # do the system call
+	# read in the new line
+	li $a1, 128	      # size of the buffer
+	#la $a0, SPACE        
+	move $a0, $v0	      # location of the buffer	
+	li $v0, 8 
 	syscall
 
-	la $t1, SPACE
+	#la $t1, SPACE  
+	move $t1, $a0
 bloop4: 
 	lb $t5, ($t1) 
 	beqz $t5, eloop4	
@@ -143,9 +154,10 @@ bloop4:
 eloop4:
 	addi $t1,-1
 	li $t6,0
-        sb $t6, ($t1)
+	sb $t6, ($t1)
 
-	la $v0, SPACE
+	#la $v0, SPACE
+	move $v0, $a0	      # save buffer location to v0 as return value	
 	move $sp, $fp         # pop callee frame off stack
 	lw $ra, -4($fp)       # restore saved ra
 	lw $fp, 0($fp)        # restore saved fp
@@ -156,3 +168,4 @@ eloop4:
 TRUE:.asciiz "true"
 FALSE:.asciiz "false"
 SPACE:.asciiz "Making Space For Inputed Values Is Fun."
+SPACE2:.asciiz "AAA.\n"

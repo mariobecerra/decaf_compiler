@@ -20,7 +20,7 @@
  * preserved between calls to yylex or used outside the scanner.
  */
 static int curLineNum, curColNum;
-List<char*> savedLines;
+List<const char*> savedLines;
 
 static void DoBeforeEachAction(); 
 #define YY_USER_ACTION DoBeforeEachAction();
@@ -102,7 +102,6 @@ SINGLE_COMMENT    ("//"[^\n]*)
 "Print"             { return T_Print;       }
 "ReadInteger"       { return T_ReadInteger; }
 "ReadLine"          { return T_ReadLine;    }
-
 
 
  /* -------------------- Operators ----------------------------- */
