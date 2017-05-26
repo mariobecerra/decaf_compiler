@@ -98,7 +98,7 @@ ret:	lw $v0 s1
 
 	.text
 	.globl __start
-__start: 
+__start:
 	lw $a0, 0($sp)	# argc
 	addiu $a1, $sp, 4 # argv
 	addiu $a2, $a1, 4 # envp

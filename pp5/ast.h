@@ -1,86 +1,93 @@
-/* File: ast.h
- * ----------- 
- * This file defines the abstract base class Node and the concrete 
- * Identifier and Error node subclasses that are used through the tree as 
- * leaf nodes. A parse tree is a hierarchical collection of ast nodes (or, 
- * more correctly, of instances of concrete subclassses such as VarDecl,
- * ForStmt, and AssignExpr).
- * 
- * Location: Each node maintains its lexical location (line and columns in 
- * file), that location can be NULL for those nodes that don't care/use 
- * locations. The location is typcially set by the node constructor.  The 
- * location is used to provide the context when reporting semantic errors.
- *
- * Parent: Each node has a pointer to its parent. For a Program node, the 
- * parent is NULL, for all other nodes it is the pointer to the node one level
- * up in the parse tree.  The parent is not set in the constructor (during a 
- * bottom-up parse we don't know the parent at the time of construction) but 
- * instead we wait until assigning the children into the parent node and then 
- * set up links in both directions. The parent link is typically not used 
- * during parsing, but is more important in later phases.
- *
- * Semantic analysis: For pp3 you are adding "Check" behavior to the ast
- * node classes. Your semantic analyzer should do an inorder walk on the
- * parse tree, and when visiting each node, verify the particular
- * semantic rules that apply to that construct.
- *
- * Code generation: For pp5 you are adding "Emit" behavior to the ast
- * node classes. Your code generator should do an postorder walk on the
- * parse tree, and when visiting each node, emitting the necessary 
- * instructions for that construct.
- */
+
 
 #ifndef _H_ast
 #define _H_ast
 
-#include <stdlib.h>   // for NULL
-#include "location.h"
 #include <iostream>
+#include <stdlib.h>   
+#include "location.h"
+#include "scope.h"
+#include "errors.h"
+#include "codegen.h"
 
-class Scope;
 
-class Node 
+extern CodeGenerator *CG;
+
+class Node
 {
   protected:
     yyltype *location;
     Node *parent;
-    Scope *scope;
+    Type *expr_type; 
+    Location *emit_loc;
 
   public:
+    
     Node(yyltype loc);
     Node();
-    virtual ~Node() {}
     
-    Scope *GetScope()        { return scope; }
     yyltype *GetLocation()   { return location; }
     void SetParent(Node *p)  { parent = p; }
     Node *GetParent()        { return parent; }
+    
+    virtual const char *GetPrintNameForNode() = 0;
+    
+    
+    void Print(int indentLevel, const char *label = NULL);
+    virtual void PrintChildren(int indentLevel) {}
+    
+    virtual void Check(checkT c) {}
+    virtual Type * GetType() { return expr_type; }
+    virtual bool IsLoopStmt() { return false; }
+    virtual bool IsSwitchStmt() { return false; }
+    virtual bool IsCaseStmt() { return false; }
+    
+    virtual void Emit() {}
+    virtual Location * GetEmitLoc() { return emit_loc; }
 };
-   
 
-class Identifier : public Node 
+class Identifier : public Node
 {
   protected:
     char *name;
-    
+    Decl *decl;
+
   public:
+    
     Identifier(yyltype loc, const char *name);
-    friend std::ostream& operator<<(std::ostream& out, Identifier *id) { return out << id->name; }
-    const char* GetName() { return name; }
+    
+    const char *GetPrintNameForNode()   { return "Identifier"; }
+    void PrintChildren(int indentLevel);
+    friend std::ostream& operator<<(std::ostream& out, Identifier *id)
+        { return out << id->name; }
+    
+    void Check(checkT c);
+    bool IsEquivalentTo(Identifier *other);
+    char *GetIdName() { return name; }
+    void SetDecl(Decl *d) { decl = d; }
+    Decl * GetDecl() { return decl; }
+    
+    void Emit();
+    void AddPrefix(const char *prefix);
+    Location * GetEmitLocDeref() { return GetEmitLoc(); }
+
+  protected:
+    void CheckDecl();
 };
 
 
-// This node class is designed to represent a portion of the tree that 
-// encountered syntax errors during parsing. The partial completed tree
-// is discarded along with the states being popped, and an instance of
-// the Error class can stand in as the placeholder in the parse tree
-// when your parser can continue after an error.
+
+
+
+
 class Error : public Node
 {
   public:
+    
     Error() : Node() {}
+    
+    const char *GetPrintNameForNode()   { return "Error"; }
 };
 
-
-
 #endif
+

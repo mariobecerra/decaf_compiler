@@ -1,6 +1,6 @@
-//
-// Classes with inheritance
-//
+
+
+
 
 class Animal {
   int height;

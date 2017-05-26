@@ -1,76 +1,90 @@
-/* File: ast_type.h
- * ----------------
- * In our parse tree, Type nodes are used to represent and
- * store type information. The base Type class is used
- * for built-in types, the NamedType for classes and interfaces,
- * and the ArrayType for arrays of other types.  
- *
- * pp3: You will need to extend the Type classes to implement
- * the type system and rules for type equivalency and compatibility.
- 
- * pp5: You will need to extend the Type classes to implement
- * code generation for types.
- */
- 
+
+
 #ifndef _H_ast_type
 #define _H_ast_type
 
+#include <iostream>
 #include "ast.h"
 #include "list.h"
-#include <iostream>
-#include "codegen.h"
-using namespace std;
 
-
-class Type : public Node 
+class Type : public Node
 {
   protected:
     char *typeName;
 
   public :
+    
     static Type *intType, *doubleType, *boolType, *voidType,
                 *nullType, *stringType, *errorType;
-
-    Type(yyltype loc) : Node(loc) {}
-    Type(const char *str);
-    Type() : Node() {}
     
-    virtual const char* GetName() { return typeName; }
-
+    Type(yyltype loc) : Node(loc) { expr_type = NULL; }
+    Type(const char *str);
+    
+    const char *GetPrintNameForNode() { return "Type"; }
+    void PrintChildren(int indentLevel);
     virtual void PrintToStream(std::ostream& out) { out << typeName; }
-    friend std::ostream& operator<<(std::ostream& out, Type *t) { t->PrintToStream(out); return out; }
+    friend std::ostream& operator<<(std::ostream& out, Type *t)
+        { t->PrintToStream(out); return out; }
+    
+    void Check(checkT c);
+    virtual void Check(checkT c, reasonT r) { Check(c); }
+    virtual bool IsBasicType() { return !IsNamedType() && !IsArrayType(); }
+    virtual bool IsNamedType() { return false; }
+    virtual bool IsArrayType() { return false; }
     virtual bool IsEquivalentTo(Type *other) { return this == other; }
-    virtual BuiltIn GetPrint();
+    virtual bool IsCompatibleWith(Type *other) { return this == other; }
+    char * GetTypeName() { return typeName; }
+    virtual void SetSelfType() { expr_type = this; }
+    
+    virtual int GetTypeSize() { return 4; }
 };
 
-class NamedType : public Type 
+class NamedType : public Type
 {
   protected:
     Identifier *id;
-    
+
   public:
+    
     NamedType(Identifier *i);
     
-    const char* GetName() { return id->GetName(); }
-
+    const char *GetPrintNameForNode() { return "NamedType"; }
+    void PrintChildren(int indentLevel);
     void PrintToStream(std::ostream& out) { out << id; }
-    BuiltIn GetPrint();
+    
+    void Check(checkT c, reasonT r);
+    void Check(checkT c) { Check(c, LookingForType); }
+    bool IsNamedType() { return true; }
+    bool IsEquivalentTo(Type *other);
+    bool IsCompatibleWith(Type *other);
+    Identifier *GetId() { return id; }
+
+  protected:
+    void CheckDecl(reasonT r);
 };
 
-class ArrayType : public Type 
+class ArrayType : public Type
 {
   protected:
     Type *elemType;
 
   public:
-    ArrayType(yyltype loc, Type *elemType);
-    ArrayType(Type *elemType);
-
-    const char* GetName() { return elemType->GetName(); }
     
+    ArrayType(yyltype loc, Type *elemType);
+    
+    const char *GetPrintNameForNode() { return "ArrayType"; }
+    void PrintChildren(int indentLevel);
     void PrintToStream(std::ostream& out) { out << elemType << "[]"; }
-    BuiltIn GetPrint();
+    
+    void Check(checkT c);
+    bool IsArrayType() { return true; }
+    bool IsEquivalentTo(Type *other);
+    bool IsCompatibleWith(Type *other);
+    Type * GetElemType() { return elemType->GetType(); }
+
+  protected:
+    void CheckDecl();
 };
 
- 
 #endif
+

@@ -1,127 +1,83 @@
-/* File: ast_expr.cc
- * -----------------
- * Implementation of expression node classes.
- */
 
+
+#include <iostream>
 #include <string.h>
+#include "ast_decl.h"
 #include "ast_expr.h"
 #include "ast_type.h"
-#include "ast_decl.h"
-#include "codegen.h"
 #include "errors.h"
 
-Decl* Expr::GetFieldDecl(Identifier *field, Expr *b) {
-
-    if (b != NULL)
-        return GetFieldDecl(field, b->GetType());
-
-    Decl *d = GetFieldDecl(field, static_cast<Node*>(this));
-
-    if (d == NULL) {
-        ClassDecl *classDecl = GetClassDecl();
-        if (classDecl != NULL)
-            d = GetFieldDecl(field, classDecl->GetType());
-    }
-
-    return d;
+void EmptyExpr::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
 }
 
-Decl* Expr::GetFieldDecl(Identifier *field, Node *n) {
-    while (n != NULL) {
-        Decl *d = n->GetScope()->table->Lookup(field->GetName());
-        if (d != NULL)
-            return d;
-        n = n->GetParent();
+void EmptyExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        expr_type = Type::voidType;
     }
-    return NULL;
-}
-
-Decl* Expr::GetFieldDecl(Identifier *field, Type *t) {
-    // It is assumed that t is *not* a primitive type. Results are undefined if
-    // this assumption is not met.
-    while (t != NULL) {
-        Decl *tDecl = Program::gScope->table->Lookup(t->GetName());
-        Decl *d = tDecl->GetScope()->table->Lookup(field->GetName());
-        if (d != NULL)
-            return d;
-
-        if (dynamic_cast<ClassDecl*>(tDecl))
-            t = static_cast<ClassDecl*>(tDecl)->GetExtends();
-        else
-            break;
-    }
-    return NULL;
-}
-
-ClassDecl* Expr::GetClassDecl() {
-    Node *n = this;
-    while (n != NULL) {
-        if (dynamic_cast<ClassDecl*>(n))
-            return static_cast<ClassDecl*>(n);
-        n = n->GetParent();
-    }
-    return NULL;
-}
-
-Location* Expr::GetThisLoc() {
-    return new Location(fpRelative, CodeGenerator::OffsetToFirstParam, "this");
 }
 
 IntConstant::IntConstant(yyltype loc, int val) : Expr(loc) {
     value = val;
 }
 
-Type* IntConstant::GetType() {
-    return Type::intType;
+void IntConstant::PrintChildren(int indentLevel) {
+    printf("%d", value);
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
 }
 
-Location* IntConstant::Emit(CodeGenerator *cg) {
-    return cg->GenLoadConstant(value);
+void IntConstant::Check(checkT c) {
+    if (c == E_CheckDecl) {
+        expr_type = Type::intType;
+    }
 }
 
-int IntConstant::GetMemBytes() {
-    return 4;
+void IntConstant::Emit() {
+    emit_loc = CG->GenLoadConstant(value);
 }
 
 DoubleConstant::DoubleConstant(yyltype loc, double val) : Expr(loc) {
     value = val;
 }
 
-Type* DoubleConstant::GetType() {
-    return Type::doubleType;
+void DoubleConstant::PrintChildren(int indentLevel) {
+    printf("%g", value);
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
 }
 
-Location* DoubleConstant::Emit(CodeGenerator *cg) {
-    /* From the PP4 assignment description (page 3):
-     * "We have removed doubles from the type of Decaf for this project"
-     * Thus, Assert if this is encountered.
-     */
+void DoubleConstant::Check(checkT c) {
+    if (c == E_CheckDecl) {
+        expr_type = Type::doubleType;
+    }
+}
+
+void DoubleConstant::Emit() {
+    ReportError::Formatted(this->GetLocation(),
+            "Double is not supported by compiler back end yet.");
     Assert(0);
-    return NULL;
-}
-
-int DoubleConstant::GetMemBytes() {
-    return 4;
 }
 
 BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc) {
     value = val;
 }
 
-Type* BoolConstant::GetType() {
-    return Type::boolType;
+void BoolConstant::PrintChildren(int indentLevel) {
+    printf("%s", value ? "true" : "false");
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
 }
 
-Location* BoolConstant::Emit(CodeGenerator *cg) {
-    /* From the PP4 assignment description (page 3):
-     * "We treat bools just like ordinary 4-byte integers, which evaluate to 0
-     * or not 0.
-     */
-    return cg->GenLoadConstant(value ? 1 : 0);
+void BoolConstant::Check(checkT c) {
+    if (c == E_CheckDecl) {
+        expr_type = Type::boolType;
+    }
 }
 
-int BoolConstant::GetMemBytes() {
-    return 4;
+void BoolConstant::Emit() {
+    emit_loc = CG->GenLoadConstant(value ? 1 : 0);
 }
 
 StringConstant::StringConstant(yyltype loc, const char *val) : Expr(loc) {
@@ -129,28 +85,35 @@ StringConstant::StringConstant(yyltype loc, const char *val) : Expr(loc) {
     value = strdup(val);
 }
 
-Type* StringConstant::GetType() {
-    return Type::stringType;
+void StringConstant::PrintChildren(int indentLevel) {
+    printf("%s",value);
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
 }
 
-Location* StringConstant::Emit(CodeGenerator *cg) {
-    return cg->GenLoadConstant(value);
+void StringConstant::Check(checkT c) {
+    if (c == E_CheckDecl) {
+        expr_type = Type::stringType;
+    }
 }
 
-int StringConstant::GetMemBytes() {
-    return 4;
+void StringConstant::Emit() {
+    emit_loc = CG->GenLoadConstant(value);
 }
 
-Type* NullConstant::GetType() {
-    return Type::nullType;
+void NullConstant::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
 }
 
-Location* NullConstant::Emit(CodeGenerator *cg) {
-    return cg->GenLoadConstant(0);
+void NullConstant::Check(checkT c) {
+    if (c == E_CheckDecl) {
+        expr_type = Type::nullType;
+    }
 }
 
-int NullConstant::GetMemBytes() {
-    return 4;
+void NullConstant::Emit() {
+    emit_loc = CG->GenLoadConstant(0);
 }
 
 Operator::Operator(yyltype loc, const char *tok) : Node(loc) {
@@ -158,732 +121,867 @@ Operator::Operator(yyltype loc, const char *tok) : Node(loc) {
     strncpy(tokenString, tok, sizeof(tokenString));
 }
 
-CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r) 
+void Operator::PrintChildren(int indentLevel) {
+    printf("%s",tokenString);
+}
+
+CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
   : Expr(Join(l->GetLocation(), r->GetLocation())) {
     Assert(l != NULL && o != NULL && r != NULL);
     (op=o)->SetParent(this);
-    (left=l)->SetParent(this); 
+    (left=l)->SetParent(this);
     (right=r)->SetParent(this);
 }
 
-CompoundExpr::CompoundExpr(Operator *o, Expr *r) 
+CompoundExpr::CompoundExpr(Operator *o, Expr *r)
   : Expr(Join(o->GetLocation(), r->GetLocation())) {
     Assert(o != NULL && r != NULL);
-    left = NULL; 
+    left = NULL;
     (op=o)->SetParent(this);
     (right=r)->SetParent(this);
 }
 
-Type* ArithmeticExpr::GetType() {
-    return right->GetType();
+void CompoundExpr::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    if (left) left->Print(indentLevel+1);
+    op->Print(indentLevel+1);
+    right->Print(indentLevel+1);
 }
 
-Location* ArithmeticExpr::Emit(CodeGenerator *cg) {
-    if (left == NULL)
-        return EmitUnary(cg);
-    else
-        return EmitBinary(cg);
+void ArithmeticExpr::CheckType() {
+    if (left) left->Check(E_CheckType);
+    op->Check(E_CheckType);
+    right->Check(E_CheckType);
+
+    if (!strcmp(op->GetOpStr(), "-") && !left) {
+        Type *tr = right->GetType();
+        if (tr == NULL) {
+            
+            return;
+        }
+        if (tr == Type::intType) {
+            expr_type = Type::intType;
+        } else if (tr == Type::doubleType) {
+            expr_type = Type::doubleType;
+        } else {
+            ReportError::IncompatibleOperand(op, tr);
+        }
+    } else { 
+        Type *tl = left->GetType();
+        Type *tr = right->GetType();
+        if (tl == NULL || tr == NULL) {
+            
+            return;
+        }
+        if (tl == Type::intType && tr == Type::intType) {
+            expr_type = Type::intType;
+        } else if ((tl == Type::doubleType && tr == Type::doubleType)
+                
+                ) {
+            expr_type = Type::doubleType;
+        } else {
+            ReportError::IncompatibleOperands(op, tl, tr);
+        }
+    }
 }
 
-int ArithmeticExpr::GetMemBytes() {
-    if (left == NULL)
-        return GetMemBytesUnary();
-    else
-        return GetMemBytesBinary();
+void ArithmeticExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        if (left) left->Check(c);
+        op->Check(c);
+        right->Check(c);
+    }
 }
 
-Location* ArithmeticExpr::EmitUnary(CodeGenerator *cg) {
-    Location *rtemp = right->Emit(cg);
+void ArithmeticExpr::Emit() {
+    if (left) left->Emit();
+    right->Emit();
 
-    Location *zero = cg->GenLoadConstant(0);
-    return cg->GenBinaryOp(op->GetTokenString(), zero, rtemp);
+    Location *l = left ? left->GetEmitLocDeref() : CG->GenLoadConstant(0);
+    emit_loc = CG->GenBinaryOp(op->GetOpStr(), l, right->GetEmitLocDeref());
 }
 
-int ArithmeticExpr::GetMemBytesUnary() {
-    return right->GetMemBytes() + 2 * CodeGenerator::VarSize;
+void RelationalExpr::CheckType() {
+    left->Check(E_CheckType);
+    op->Check(E_CheckType);
+    right->Check(E_CheckType);
+
+    
+    expr_type = Type::boolType;
+
+    Type *tl = left->GetType();
+    Type *tr = right->GetType();
+
+    if (tl == NULL || tr == NULL) {
+        
+        return;
+    }
+
+    if (!(tl == Type::intType && tr == Type::intType) &&
+            !(tl == Type::doubleType && tr == Type::doubleType)) {
+        ReportError::IncompatibleOperands(op, tl, tr);
+    }
 }
 
-Location* ArithmeticExpr::EmitBinary(CodeGenerator *cg) {
-    Location *ltemp = left->Emit(cg);
-    Location *rtemp = right->Emit(cg);
-
-    return cg->GenBinaryOp(op->GetTokenString(), ltemp, rtemp);
+void RelationalExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        if (left) left->Check(c);
+        op->Check(c);
+        right->Check(c);
+    }
 }
 
-int ArithmeticExpr::GetMemBytesBinary() {
-    return right->GetMemBytes() + left->GetMemBytes() + CodeGenerator::VarSize;
+void RelationalExpr::Emit() {
+    left->Emit();
+    right->Emit();
+
+    emit_loc = CG->GenBinaryOp(op->GetOpStr(), left->GetEmitLocDeref(),
+            right->GetEmitLocDeref());
 }
 
-Type* RelationalExpr::GetType() {
-    return Type::boolType;
+void EqualityExpr::CheckType() {
+    left->Check(E_CheckType);
+    op->Check(E_CheckType);
+    right->Check(E_CheckType);
+
+    Type *tl = left->GetType();
+    Type *tr = right->GetType();
+
+    
+    expr_type = Type::boolType;
+
+    if (tl == NULL || tr == NULL) {
+        
+        return;
+    }
+
+    if (!tr->IsCompatibleWith(tl) && !tl->IsCompatibleWith(tr)) {
+        ReportError::IncompatibleOperands(op, tl, tr);
+    }
 }
 
-Location* RelationalExpr::Emit(CodeGenerator *cg) {
-    const char *tok = op->GetTokenString();
-
-    if (strcmp("<", tok) == 0)
-        return EmitLess(cg, left, right);
-    else if (strcmp("<=", tok) == 0)
-        return EmitLessEqual(cg, left, right);
-    else if (strcmp(">", tok) == 0)
-        return EmitLess(cg, right, left);
-    else if (strcmp(">=", tok) == 0)
-        return EmitLessEqual(cg, right, left);
-    else
-        Assert(0); // Should never reach this point!
-
-    return NULL;
+void EqualityExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        if (left) left->Check(c);
+        op->Check(c);
+        right->Check(c);
+    }
 }
 
-int RelationalExpr::GetMemBytes() {
-    const char *tok = op->GetTokenString();
+void EqualityExpr::Emit() {
+    left->Emit();
+    right->Emit();
 
-    if (strcmp("<", tok) == 0)
-        return GetMemBytesLess(left, right);
-    else if (strcmp("<=", tok) == 0)
-        return GetMemBytesLessEqual(left, right);
-    else if (strcmp(">", tok) == 0)
-        return GetMemBytesLess(right, left);
-    else if (strcmp(">=", tok) == 0)
-        return GetMemBytesLessEqual(right, left);
-    else
-        Assert(0); // Should never reach this point!
+    Type *tl = left->GetType();
+    Type *tr = right->GetType();
 
-    return 0;
+    if (tl == tr && (tl == Type::intType || tl == Type::boolType)) {
+        emit_loc = CG->GenBinaryOp(op->GetOpStr(), left->GetEmitLocDeref(),
+                right->GetEmitLocDeref());
+    } else if (tl == tr && tl == Type::stringType) {
+        emit_loc = CG->GenBuiltInCall(StringEqual, left->GetEmitLocDeref(),
+                right->GetEmitLocDeref());
+        if (!strcmp(op->GetOpStr(), "!=")) {
+            
+            emit_loc = CG->GenBinaryOp("==", CG->GenLoadConstant(0),
+                emit_loc);
+        }
+    } else {
+        
+        
+        emit_loc = CG->GenBinaryOp(op->GetOpStr(), left->GetEmitLocDeref(),
+                right->GetEmitLocDeref());
+    }
 }
 
-Location* RelationalExpr::EmitLess(CodeGenerator *cg, Expr *l, Expr *r) {
-    Location *ltmp = l->Emit(cg);
-    Location *rtmp = r->Emit(cg);
+void LogicalExpr::CheckType() {
+    if (left) left->Check(E_CheckType);
+    op->Check(E_CheckType);
+    right->Check(E_CheckType);
 
-    return cg->GenBinaryOp("<", ltmp, rtmp);
+    
+    expr_type = Type::boolType;
+
+    if (!strcmp(op->GetOpStr(), "!")) {
+        Type *tr = right->GetType();
+        if (tr == NULL) {
+            
+            return;
+        }
+        if (tr != Type::boolType) {
+            ReportError::IncompatibleOperand(op, tr);
+        }
+    } else { 
+        Type *tl = left->GetType();
+        Type *tr = right->GetType();
+        if (tl == NULL || tr == NULL) {
+            
+            return;
+        }
+        if (tl != Type::boolType || tr != Type::boolType) {
+            ReportError::IncompatibleOperands(op, tl, tr);
+        }
+    }
 }
 
-int RelationalExpr::GetMemBytesLess(Expr *l, Expr *r) {
-    return l->GetMemBytes() + r->GetMemBytes() + CodeGenerator::VarSize;
+void LogicalExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        if (left) left->Check(c);
+        op->Check(c);
+        right->Check(c);
+    }
 }
 
-Location* RelationalExpr::EmitLessEqual(CodeGenerator *cg, Expr *l, Expr *r) {
-    Location *ltmp = l->Emit(cg);
-    Location *rtmp = r->Emit(cg);
+void LogicalExpr::Emit() {
+    if (left) left->Emit();
+    right->Emit();
 
-    Location *less = cg->GenBinaryOp("<", ltmp, rtmp);
-    Location *equal = cg->GenBinaryOp("==", ltmp, rtmp);
-
-    return cg->GenBinaryOp("||", less, equal);
+    if (left) {
+        emit_loc = CG->GenBinaryOp(op->GetOpStr(), left->GetEmitLocDeref(),
+                right->GetEmitLocDeref());
+    } else {
+        
+        emit_loc = CG->GenBinaryOp("==", CG->GenLoadConstant(0),
+                right->GetEmitLocDeref());
+    }
 }
 
-int RelationalExpr::GetMemBytesLessEqual(Expr *l, Expr *r) {
-    return l->GetMemBytes() + r->GetMemBytes() + 3 * CodeGenerator::VarSize;
+void AssignExpr::CheckType() {
+    left->Check(E_CheckType);
+    op->Check(E_CheckType);
+    right->Check(E_CheckType);
+
+    Type *tl = left->GetType();
+    Type *tr = right->GetType();
+
+    if (tl == NULL || tr == NULL) {
+        
+        return;
+    }
+
+    if (!tl->IsCompatibleWith(tr)) {
+        ReportError::IncompatibleOperands(op, tl, tr);
+    }
 }
 
-Type* EqualityExpr::GetType() {
-    return Type::boolType;
+void AssignExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        left->Check(c);
+        op->Check(c);
+        right->Check(c);
+    }
 }
 
-Location* EqualityExpr::Emit(CodeGenerator *cg) {
-    const char *tok = op->GetTokenString();
-
-    if (strcmp("==", tok) == 0)
-        return EmitEqual(cg);
-    else if (strcmp("!=", tok) == 0)
-        return EmitNotEqual(cg);
-    else
-        Assert(0); // Should never reach this point!
-
-    return NULL;
+void AssignExpr::Emit() {
+    right->Emit();
+    left->Emit();
+    Location *r = right->GetEmitLocDeref();
+    Location *l = left->GetEmitLoc();
+    if (r && l) {
+        
+        if (l->GetBase() != NULL) {
+            CG->GenStore(l->GetBase(), r, l->GetOffset());
+        } else if (left->IsArrayAccessRef()) {
+            CG->GenStore(l, r);
+        } else {
+            CG->GenAssign(l, r);
+        }
+        emit_loc = left->GetEmitLocDeref();
+    }
 }
 
-int EqualityExpr::GetMemBytes() {
-    const char *tok = op->GetTokenString();
-
-    if (strcmp("==", tok) == 0)
-        return GetMemBytesEqual();
-    else if (strcmp("!=", tok) == 0)
-        return GetMemBytesNotEqual();
-    else
-        Assert(0); // Should never reach this point!
-
-    return 0;
+void This::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
 }
 
-Location* EqualityExpr::EmitEqual(CodeGenerator *cg) {
-    Location *ltmp = left->Emit(cg);
-    Location *rtmp = right->Emit(cg);
-
-    if (left->GetType()->IsEquivalentTo(Type::stringType))
-        return cg->GenBuiltInCall(StringEqual, ltmp, rtmp);
-    else
-        return cg->GenBinaryOp("==", ltmp, rtmp);
+void This::CheckType() {
+    Decl *d = ScopeM->LookupThis();
+    if (!d || !d->IsClassDecl()) {
+        ReportError::ThisOutsideClassScope(this);
+    } else {
+        
+        expr_type = new NamedType(d->GetId());
+        expr_type->SetSelfType();
+    }
 }
 
-int EqualityExpr::GetMemBytesEqual() {
-    return left->GetMemBytes() + right->GetMemBytes() + CodeGenerator::VarSize;
+void This::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    }
 }
 
-Location* EqualityExpr::EmitNotEqual(CodeGenerator *cg) {
-    const char* ret_zro = cg->NewLabel();
-    const char* ret_one = cg->NewLabel();
-    Location *ret = cg->GenTempVar();
-
-    Location *ltmp = left->Emit(cg);
-    Location *rtmp = right->Emit(cg);
-
-    Location *equal;
-    if (left->GetType()->IsEquivalentTo(Type::stringType))
-        equal = cg->GenBuiltInCall(StringEqual, ltmp, rtmp);
-    else
-        equal = cg->GenBinaryOp("==", ltmp, rtmp);
-
-    cg->GenIfZ(equal, ret_one);
-    cg->GenAssign(ret, cg->GenLoadConstant(0));
-    cg->GenGoto(ret_zro);
-    cg->GenLabel(ret_one);
-    cg->GenAssign(ret, cg->GenLoadConstant(1));
-    cg->GenLabel(ret_zro);
-
-    return ret;
-}
-
-int EqualityExpr::GetMemBytesNotEqual() {
-    return left->GetMemBytes() + right->GetMemBytes() +
-           4 * CodeGenerator::VarSize;
-}
-
-Type* LogicalExpr::GetType() {
-    return Type::boolType;
-}
-
-Location* LogicalExpr::Emit(CodeGenerator *cg) {
-    const char *tok = op->GetTokenString();
-
-    if (strcmp("&&", tok) == 0)
-        return EmitAnd(cg);
-    else if (strcmp("||", tok) == 0)
-        return EmitOr(cg);
-    else if (strcmp("!", tok) == 0)
-        return EmitNot(cg);
-    else
-        Assert(0); // Should never reach this point!
-
-    return 0;
-}
-
-int LogicalExpr::GetMemBytes() {
-    const char *tok = op->GetTokenString();
-
-    if (strcmp("&&", tok) == 0)
-        return GetMemBytesAnd();
-    else if (strcmp("||", tok) == 0)
-        return GetMemBytesOr();
-    else if (strcmp("!", tok) == 0)
-        return GetMemBytesNot();
-    else
-        Assert(0); // Should never reach this point!
-
-    return 0;
-}
-
-Location* LogicalExpr::EmitAnd(CodeGenerator *cg) {
-    Location *ltmp = left->Emit(cg);
-    Location *rtmp = right->Emit(cg);
-
-    return cg->GenBinaryOp("&&", ltmp, rtmp);
-}
-
-int LogicalExpr::GetMemBytesAnd() {
-    return left->GetMemBytes() + right->GetMemBytes() + CodeGenerator::VarSize;
-}
-
-Location* LogicalExpr::EmitOr(CodeGenerator *cg) {
-    Location *ltmp = left->Emit(cg);
-    Location *rtmp = right->Emit(cg);
-
-    return cg->GenBinaryOp("||", ltmp, rtmp);
-}
-
-int LogicalExpr::GetMemBytesOr() {
-    return left->GetMemBytes() + right->GetMemBytes() + CodeGenerator::VarSize;
-}
-
-Location* LogicalExpr::EmitNot(CodeGenerator *cg) {
-    const char* ret_zro = cg->NewLabel();
-    const char* ret_one = cg->NewLabel();
-    Location *ret = cg->GenTempVar();
-
-    Location *rtmp = right->Emit(cg);
-
-    cg->GenIfZ(rtmp, ret_one);
-    cg->GenAssign(ret, cg->GenLoadConstant(0));
-    cg->GenGoto(ret_zro);
-    cg->GenLabel(ret_one);
-    cg->GenAssign(ret, cg->GenLoadConstant(1));
-    cg->GenLabel(ret_zro);
-
-    return ret;
-}
-
-int LogicalExpr::GetMemBytesNot() {
-    return right->GetMemBytes() + 3 * CodeGenerator::VarSize;
-}
-
-Type* AssignExpr::GetType() {
-    return left->GetType();
-}
-
-Location* AssignExpr::Emit(CodeGenerator *cg) {
-    Location *rtemp = right->Emit(cg);
-    LValue *lval = dynamic_cast<LValue*>(left);
-
-    if (lval != NULL)
-        return lval->EmitStore(cg, rtemp);
-
-    Location *ltemp = left->Emit(cg);
-    cg->GenAssign(ltemp, rtemp);
-    return ltemp;
-}
-
-int AssignExpr::GetMemBytes() {
-    LValue *lval = dynamic_cast<LValue*>(left);
-    if (lval != NULL)
-        return right->GetMemBytes() + lval->GetMemBytesStore();
-
-    return right->GetMemBytes() + left->GetMemBytes();
-}
-
-Type* This::GetType() {
-    ClassDecl *d = GetClassDecl();
-    Assert(d != NULL);
-    return d->GetType();
-}
-
-Location* This::Emit(CodeGenerator *cg) {
-    return GetThisLoc();
-}
-
-int This::GetMemBytes() {
-    return 0;
+void This::Emit() {
+    emit_loc = CG->ThisPtr;
 }
 
 ArrayAccess::ArrayAccess(yyltype loc, Expr *b, Expr *s) : LValue(loc) {
-    (base=b)->SetParent(this); 
+    (base=b)->SetParent(this);
     (subscript=s)->SetParent(this);
 }
-     
-Type* ArrayAccess::GetType() {
-    return base->GetType();
+
+void ArrayAccess::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    base->Print(indentLevel+1);
+    subscript->Print(indentLevel+1, "(subscript) ");
 }
 
-Location* ArrayAccess::Emit(CodeGenerator *cg) {
-    return cg->GenLoad(EmitAddr(cg));
+void ArrayAccess::CheckType() {
+    Type *t;
+    int err = 0;
+
+    subscript->Check(E_CheckType);
+    t = subscript->GetType();
+    if (t == NULL) {
+        
+    } else if (t != Type::intType) {
+        ReportError::SubscriptNotInteger(subscript);
+    }
+
+    base->Check(E_CheckType);
+    t = base->GetType();
+    if (t == NULL) {
+        
+        err++;
+    } else if (!t->IsArrayType()) {
+        ReportError::BracketsOnNonArray(base);
+        err++;
+    }
+
+    if (!err) {
+        
+        expr_type = (dynamic_cast<ArrayType*>(t))->GetElemType();
+    }
 }
 
-int ArrayAccess::GetMemBytes() {
-    return GetMemBytesAddr() + CodeGenerator::VarSize;
+void ArrayAccess::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        base->Check(c);
+        subscript->Check(c);
+    }
 }
 
-Location* ArrayAccess::EmitStore(CodeGenerator *cg, Location *val) {
-    Location *addr = EmitAddr(cg);
-    cg->GenStore(addr, val);
-    return cg->GenLoad(addr);
+void ArrayAccess::Emit() {
+    base->Emit();
+    subscript->Emit();
+    Location *t0 = subscript->GetEmitLocDeref();
+
+    Location *t1 = CG->GenLoadConstant(0);
+    Location *t2 = CG->GenBinaryOp("<", t0, t1);
+    Location *t3 = base->GetEmitLocDeref();
+    Location *t4 = CG->GenLoad(t3, -4);
+    Location *t5 = CG->GenBinaryOp("<", t0, t4);
+    Location *t6 = CG->GenBinaryOp("==", t5, t1);
+    Location *t7 = CG->GenBinaryOp("||", t2, t6);
+    const char *l = CG->NewLabel();
+    CG->GenIfZ(t7, l);
+    Location *t8 = CG->GenLoadConstant(err_arr_out_of_bounds);
+    CG->GenBuiltInCall(PrintString, t8);
+    CG->GenBuiltInCall(Halt);
+    CG->GenLabel(l);
+
+    Location *t9 = CG->GenLoadConstant(expr_type->GetTypeSize());
+    Location *t10 = CG->GenBinaryOp("*", t9, t0);
+    Location *t11 = CG->GenBinaryOp("+", t3, t10);
+    emit_loc = t11;
 }
 
-int ArrayAccess::GetMemBytesStore() {
-    return GetMemBytesAddr() + CodeGenerator::VarSize;
+Location * ArrayAccess::GetEmitLocDeref() {
+    Location *t = CG->GenLoad(emit_loc, 0);
+    return t;
 }
 
-Location* ArrayAccess::EmitAddr(CodeGenerator *cg) {
-    Location *b = base->Emit(cg);
-    Location *s = subscript->Emit(cg);
-
-    EmitRuntimeSubscriptCheck(cg, b, s);
-
-    Location *con = cg->GenLoadConstant(CodeGenerator::VarSize);
-
-    // Offset in bytes without skipping the array header info
-    Location *num = cg->GenBinaryOp("*", s, con);
-
-    // Offset in bytes taking the array header info into account
-    Location *off = cg->GenBinaryOp("+", num, con);
-
-    return cg->GenBinaryOp("+", b, off);
-}
-
-int ArrayAccess::GetMemBytesAddr() {
-    return base->GetMemBytes() + subscript->GetMemBytes() +
-           4 * CodeGenerator::VarSize + GetMemBytesRuntimeSubscriptCheck();
-}
-
-Location* ArrayAccess::EmitRuntimeSubscriptCheck(CodeGenerator *cg,
-                                                 Location *arr,
-                                                 Location *sub) {
-    Location *zro = cg->GenLoadConstant(0);
-    Location *siz = cg->GenLoad(arr);
-
-    Location *lessZro = cg->GenBinaryOp("<", sub, zro);
-    Location *gratSiz = cg->GenBinaryOp("<", siz, sub);
-    Location *equlSiz = cg->GenBinaryOp("==", siz, sub);
-    Location *gratEqulSiz = cg->GenBinaryOp("||", gratSiz, equlSiz);
-    Location *gratEqulSizLessZro = cg->GenBinaryOp("||", gratEqulSiz, lessZro);
-
-    const char *passCheck = cg->NewLabel();
-    cg->GenIfZ(gratEqulSizLessZro, passCheck);
-    cg->GenBuiltInCall(PrintString, cg->GenLoadConstant(err_arr_out_of_bounds));
-    cg->GenBuiltInCall(Halt);
-    cg->GenLabel(passCheck);
-
-    return NULL;
-}
-
-int ArrayAccess::GetMemBytesRuntimeSubscriptCheck() {
-    return 8 * CodeGenerator::VarSize;
-}
-
-FieldAccess::FieldAccess(Expr *b, Identifier *f) 
+FieldAccess::FieldAccess(Expr *b, Identifier *f)
   : LValue(b? Join(b->GetLocation(), f->GetLocation()) : *f->GetLocation()) {
-    Assert(f != NULL); // b can be be NULL (just means no explicit base)
-    base = b; 
-    if (base) base->SetParent(this); 
+    Assert(f != NULL); 
+    base = b;
+    if (base) base->SetParent(this);
     (field=f)->SetParent(this);
 }
 
-Type* FieldAccess::GetType() {
-    VarDecl *d = GetDecl();
-    Assert(d != NULL);
-    return d->GetType();
+void FieldAccess::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    if (base) base->Print(indentLevel+1);
+    field->Print(indentLevel+1);
 }
 
-Location* FieldAccess::Emit(CodeGenerator *cg) {
-    FieldAccess *baseAccess = dynamic_cast<FieldAccess*>(base);
-    VarDecl *fieldDecl = GetDecl();
-    Assert(fieldDecl != NULL);
-
-    if (baseAccess == NULL)
-        return EmitMemLoc(cg, fieldDecl);
-
-    VarDecl *baseDecl = baseAccess->GetDecl();
-    Assert(baseDecl != NULL);
-    int fieldOffset = fieldDecl->GetMemOffset();
-    return cg->GenLoad(baseDecl->GetMemLoc(), fieldOffset);
+void FieldAccess::CheckDecl() {
+    if (!base) {
+        Decl *d = ScopeM->Lookup(field);
+        if (d == NULL) {
+            ReportError::IdentifierNotDeclared(field, LookingForVariable);
+            return;
+        } else {
+            field->SetDecl(d);
+        }
+    } else {
+        
+        base->Check(E_CheckDecl);
+    }
 }
 
-int FieldAccess::GetMemBytes() {
-    FieldAccess *baseAccess = dynamic_cast<FieldAccess*>(base);
-    VarDecl *fieldDecl = GetDecl();
-    Assert(fieldDecl != NULL);
-
-    if (baseAccess == NULL)
-        return GetMemBytesMemLoc(fieldDecl);
-
-    return CodeGenerator::VarSize;
-}
-
-Location* FieldAccess::EmitStore(CodeGenerator *cg, Location *val) {
-    FieldAccess *baseAccess = dynamic_cast<FieldAccess*>(base);
-    VarDecl *fieldDecl = GetDecl();
-    Assert(fieldDecl != NULL);
-
-    if (baseAccess == NULL) {
-        return EmitMemLocStore(cg, val, fieldDecl);
+void FieldAccess::CheckType() {
+    if (!base) {
+        if (field->GetDecl()) {
+            if (field->GetDecl()->IsVarDecl()) {
+                expr_type = field->GetDecl()->GetType();
+            } else {
+                ReportError::IdentifierNotDeclared(field, LookingForVariable);
+            }
+        }
+        return;
     }
 
-    VarDecl *baseDecl = baseAccess->GetDecl();
-    Assert(baseDecl != NULL);
-    int fieldOffset = fieldDecl->GetMemOffset();
-    Location *ltemp = baseDecl->GetMemLoc();
-    cg->GenStore(ltemp, val, fieldOffset);
-    return ltemp;
-}
+    
+    base->Check(E_CheckType);
+    Type *base_t = base->GetType();
+    if (base_t != NULL) {
+        if (!base_t->IsNamedType()) {
+            ReportError::FieldNotFoundInBase(field, base_t);
+            return;
+        }
 
-int FieldAccess::GetMemBytesStore() {
-    FieldAccess *baseAccess = dynamic_cast<FieldAccess*>(base);
-    VarDecl *fieldDecl = GetDecl();
-    Assert(fieldDecl != NULL);
+        Decl *d = ScopeM->LookupField(
+                dynamic_cast<NamedType*>(base_t)->GetId(), field);
 
-    if (baseAccess == NULL)
-        return GetMemBytesMemLocStore(fieldDecl);
+        if (d == NULL || !d->IsVarDecl()) {
+            ReportError::FieldNotFoundInBase(field, base_t);
+        } else {
+            
+            
+            
+            
+            
+            
+            Decl *cur_class = ScopeM->LookupThis();
+            if (!cur_class || !cur_class->IsClassDecl()) {
+                
+                
+                ReportError::InaccessibleField(field, base_t);
+                return;
+            }
+            
+            
+            Type *cur_t = cur_class->GetType();
+            d = ScopeM->LookupField(
+                    dynamic_cast<NamedType*>(cur_t)->GetId(), field);
 
-    return 0;
-}
-
-VarDecl* FieldAccess::GetDecl() {
-    Decl *d = GetFieldDecl(field, base);
-    return dynamic_cast<VarDecl*>(d);
-
-}
-
-Location* FieldAccess::EmitMemLoc(CodeGenerator *cg, VarDecl *fieldDecl) {
-    Location *loc = fieldDecl->GetMemLoc();
-    if (loc != NULL)
-        return loc;
-
-    /* If loc == NULL, it is assumed that the base is implicitly or explicitly
-     * the 'this' pointer.
-     */
-    Location *This = GetThisLoc();
-    return cg->GenLoad(This, fieldDecl->GetMemOffset());
-}
-
-int FieldAccess::GetMemBytesMemLoc(VarDecl *fieldDecl) {
-    Location *loc = fieldDecl->GetMemLoc();
-    if (loc != NULL)
-        return 0;
-    return CodeGenerator::VarSize;
-}
-
-Location* FieldAccess::EmitMemLocStore(CodeGenerator *cg, Location *val,
-                                       VarDecl *fieldDecl) {
-    Location *loc = fieldDecl->GetMemLoc();
-    if (loc != NULL) {
-        cg->GenAssign(loc, val);
-        return loc;
+            if (d == NULL || !d->IsVarDecl()) {
+                ReportError::FieldNotFoundInBase(field, cur_t);
+                return;
+            }
+            if (cur_t->IsCompatibleWith(base_t) ||
+                    base_t->IsCompatibleWith(cur_t)) {
+                field->SetDecl(d);
+                expr_type = d->GetType();
+            } else {
+                ReportError::InaccessibleField(field, base_t);
+            }
+        }
     }
-
-    /* If loc == NULL, it is assumed that the base is implicitly or explicitly
-     * the 'this' pointer.
-     */
-    Location *This = GetThisLoc();
-    cg->GenStore(This, val, fieldDecl->GetMemOffset());
-    return This;
 }
 
-int FieldAccess::GetMemBytesMemLocStore(VarDecl *fieldDecl) {
-    return 0;
+void FieldAccess::Check(checkT c) {
+    switch (c) {
+        case E_CheckDecl:
+            this->CheckDecl(); break;
+        case E_CheckType:
+            this->CheckType(); break;
+        default:;
+            
+    }
+}
+
+void FieldAccess::Emit() {
+    if (base) base->Emit();
+    field->Emit();
+    emit_loc = field->GetEmitLocDeref();
+
+    
+    if (base)
+        emit_loc = new Location(fpRelative, emit_loc->GetOffset(),
+                emit_loc->GetName(), base->GetEmitLocDeref());
+}
+
+Location * FieldAccess::GetEmitLocDeref() {
+    Location *t = emit_loc;
+    if (t->GetBase() != NULL) {
+        
+        t = CG->GenLoad(t->GetBase(), t->GetOffset());
+    }
+    return t;
 }
 
 Call::Call(yyltype loc, Expr *b, Identifier *f, List<Expr*> *a) : Expr(loc)  {
-    Assert(f != NULL && a != NULL); // b can be be NULL (just means no explicit base)
+    Assert(f != NULL && a != NULL);
+                        
     base = b;
     if (base) base->SetParent(this);
     (field=f)->SetParent(this);
     (actuals=a)->SetParentAll(this);
 }
 
-Type* Call::GetType() {
-    if (IsArrayLengthCall())
-        return Type::intType;
-
-    FnDecl *d = GetDecl();
-    Assert(d != NULL);
-    return d->GetType();
+void Call::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    if (base) base->Print(indentLevel+1);
+    field->Print(indentLevel+1);
+    actuals->PrintAll(indentLevel+1, "(actuals) ");
 }
 
-Location* Call::Emit(CodeGenerator *cg) {
-    if (IsArrayLengthCall())
-        return EmitArrayLength(cg);
-
-    return EmitLabel(cg);
-}
-
-int Call::GetMemBytes() {
-    if (IsArrayLengthCall())
-        return GetMemBytesArrayLength();
-
-    return GetMemBytesLabel();
-}
-
-Location* Call::EmitLabel(CodeGenerator *cg) {
-    List<Location*> *params = new List<Location*>;
-    for (int i = 0, n = actuals->NumElements(); i < n; ++i)
-        params->Append(actuals->Nth(i)->Emit(cg));
-
-    int n = params->NumElements();
-    for (int i = n-1; i >= 0; --i)
-        cg->GenPushParam(params->Nth(i));
-
-    Location *ret;
-    if (!IsMethodCall()) {
-        FnDecl *d = GetDecl();
-        ret = cg->GenLCall(d->GetLabel(), d->HasReturnVal());
-
-        cg->GenPopParams(n * CodeGenerator::VarSize);
+void Call::CheckDecl() {
+    if (!base) {
+        Decl *d = ScopeM->Lookup(field);
+        if (d == NULL || !d->IsFnDecl()) {
+            ReportError::IdentifierNotDeclared(field, LookingForFunction);
+            return;
+        } else {
+            field->SetDecl(d);
+            
+            expr_type = d->GetType();
+        }
     } else {
-        Location *b;
-        if (base != NULL)
-            b = base->Emit(cg);
-        else
-            b = GetThisLoc();
+        
+        base->Check(E_CheckDecl);
+    }
+    actuals->CheckAll(E_CheckDecl);
+}
 
-        cg->GenPushParam(b);
-        ret = EmitDynamicDispatch(cg, b);
+void Call::CheckType() {
+    if (!base) {
+        if (field->GetDecl() && !expr_type) {
+            
+            expr_type = field->GetDecl()->GetType();
+        }
+    } else {
+        
+        base->Check(E_CheckType);
+        Type * t = base->GetType();
+        if (t != NULL) { 
+            if (t->IsArrayType() && !strcmp(field->GetIdName(), "length")) {
+                
+                
+                int n = actuals->NumElements();
+                if (n) {
+                    ReportError::NumArgsMismatch(field, 0, n);
+                }
+                expr_type = Type::intType;
+            } else if (!t->IsNamedType()) {
+                ReportError::FieldNotFoundInBase(field, t);
+            } else {
+                Decl *d = ScopeM->LookupField(
+                        dynamic_cast<NamedType*>(t)->GetId(), field);
+                if (d == NULL || !d->IsFnDecl()) {
+                    ReportError::FieldNotFoundInBase(field, t);
+                } else {
+                    field->SetDecl(d);
+                    expr_type = d->GetType();
+                }
+            }
+        }
+    }
+    actuals->CheckAll(E_CheckType);
+    this->CheckFuncArgs();
+}
 
-        cg->GenPopParams((n+1) * CodeGenerator::VarSize);
+void Call::CheckFuncArgs() {
+    Decl *f = field->GetDecl();
+    if (!f || !f->IsFnDecl()) return; 
+    FnDecl *fun = dynamic_cast<FnDecl*>(f);
+    List<VarDecl*> *formals = fun->GetFormals();
+
+    int n_expected = formals->NumElements();
+    int n_given = actuals->NumElements();
+    if (n_given != n_expected) {
+        ReportError::NumArgsMismatch(field, n_expected, n_given);
+    } else {
+        for (int i = 0; i < actuals->NumElements(); i++) {
+            Type *t_a = actuals->Nth(i)->GetType();
+            Type *t_f = formals->Nth(i)->GetType();
+
+            if (t_a && t_f && !t_f->IsCompatibleWith(t_a)) {
+                ReportError::ArgMismatch(actuals->Nth(i), i + 1, t_a, t_f);
+            }
+        }
+    }
+}
+
+void Call::Check(checkT c) {
+    switch (c) {
+        case E_CheckDecl:
+            this->CheckDecl(); break;
+        case E_CheckType:
+            this->CheckType(); break;
+        default:;
+            
+    }
+}
+
+void Call::Emit() {
+    PrintDebug("tac+", "Emit Call %s.", field->GetIdName());
+    
+
+    if (base) base->Emit();
+    field->Emit();
+    actuals->EmitAll();
+
+    
+    if (base && base->GetType()->IsArrayType() &&
+            !strcmp(field->GetIdName(), "length")) {
+        Location *t0 = base->GetEmitLocDeref();
+        Location *t1 = CG->GenLoad(t0, -4);
+        emit_loc = t1;
+        return;
     }
 
-    return ret;
-}
+    FnDecl *fn = dynamic_cast<FnDecl*>(field->GetDecl());
+    Assert(fn);
+    bool is_ACall = (base != NULL) || (fn->IsClassMember());
 
-int Call::GetMemBytesLabel() {
-    int memBytes = 0;
-    for (int i = 0, n = actuals->NumElements(); i < n; ++i)
-        memBytes += actuals->Nth(i)->GetMemBytes();
-
-    if (IsMethodCall()) {
-        if (base != NULL)
-            memBytes += base->GetMemBytes();
-
-        memBytes += GetMemBytesDynamicDispatch();
+    
+    Location *this_loc;
+    if (base) {
+        this_loc = base->GetEmitLocDeref(); 
+    } else if (fn->IsClassMember()) {
+        this_loc = CG->ThisPtr; 
     }
 
-    if (GetDecl()->HasReturnVal())
-        memBytes += CodeGenerator::VarSize;
+    Location *t;
+    if (is_ACall) {
+        t = CG->GenLoad(this_loc, 0);
+        t = CG->GenLoad(t, fn->GetVTableOffset());
+    }
 
-    return memBytes;
+    
+    for (int i = actuals->NumElements() - 1; i >= 0; i--) {
+        Location *l = actuals->Nth(i)->GetEmitLocDeref();
+        CG->GenPushParam(l);
+    }
+
+    
+    if (is_ACall) {
+        
+        CG->GenPushParam(this_loc);
+        
+        emit_loc = CG->GenACall(t, fn->HasReturnValue());
+        
+        CG->GenPopParams(actuals->NumElements() * 4 + 4);
+    } else {
+        
+        field->AddPrefix("_"); 
+        emit_loc = CG->GenLCall(field->GetIdName(),
+                expr_type != Type::voidType);
+        
+        CG->GenPopParams(actuals->NumElements() * 4);
+    }
 }
 
-Location* Call::EmitArrayLength(CodeGenerator *cg) {
-    return cg->GenLoad(base->Emit(cg));
-}
-
-int Call::GetMemBytesArrayLength() {
-    return base->GetMemBytes() + CodeGenerator::VarSize;
-}
-
-Location* Call::EmitDynamicDispatch(CodeGenerator *cg, Location *b) {
-    Location *vtable = cg->GenLoad(b);
-    int methodOffset = GetDecl()->GetVTblOffset();
-    Location *faddr = cg->GenLoad(vtable, methodOffset);
-    return cg->GenACall(faddr, GetDecl()->HasReturnVal());
-}
-
-int Call::GetMemBytesDynamicDispatch() {
-    return 2 * CodeGenerator::VarSize;
-}
-
-FnDecl* Call::GetDecl() {
-    Decl *d = GetFieldDecl(field, base);
-    return dynamic_cast<FnDecl*>(d);
-}
-
-bool Call::IsArrayLengthCall() {
-    if (base == NULL)
-        return false;
-
-    if (dynamic_cast<ArrayType*>(base->GetType()) == NULL)
-        return false;
-
-    if (strcmp("length", field->GetName()) != 0)
-        return false;
-
-    return true;
-}
-
-bool Call::IsMethodCall() {
-    if (base != NULL)
-        return true;
-
-    ClassDecl *c = GetClassDecl();
-    if (c == NULL)
-        return false;
-
-    FnDecl *f = dynamic_cast<FnDecl*>(GetFieldDecl(field, c->GetType()));
-    if (f == NULL)
-        return false;
-
-    return true;
-}
-
-NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) { 
-  Assert(c != NULL);
-  (cType=c)->SetParent(this);
-}
-
-Type* NewExpr::GetType() {
-    Decl *d = Program::gScope->table->Lookup(cType->GetName());
-    ClassDecl *c = dynamic_cast<ClassDecl*>(d);
+NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) {
     Assert(c != NULL);
-    return c->GetType();
+    (cType=c)->SetParent(this);
 }
 
-Location* NewExpr::Emit(CodeGenerator *cg) {
-    const char *name = cType->GetName();
-
-    Decl *d = Program::gScope->table->Lookup(name);
-    Assert(d != NULL);
-
-    Location *s = cg->GenLoadConstant(d->GetMemBytes());
-    Location *c = cg->GenLoadConstant(CodeGenerator::VarSize);
-
-    Location *mem = cg->GenBuiltInCall(Alloc, cg->GenBinaryOp("+", c, s));
-    cg->GenStore(mem, cg->GenLoadLabel(name));
-
-    return mem;
+void NewExpr::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    cType->Print(indentLevel+1);
 }
 
-int NewExpr::GetMemBytes() {
-    return 5 * CodeGenerator::VarSize;
+void NewExpr::CheckDecl() {
+    cType->Check(E_CheckDecl, LookingForClass);
+}
+
+void NewExpr::CheckType() {
+    cType->Check(E_CheckType);
+    
+    if (cType->GetType()) { 
+        expr_type = cType;
+    }
+}
+
+void NewExpr::Check(checkT c) {
+    switch (c) {
+        case E_CheckDecl:
+            this->CheckDecl(); break;
+        case E_CheckType:
+            this->CheckType(); break;
+        default:
+            cType->Check(c);
+    }
+}
+
+void NewExpr::Emit() {
+    ClassDecl *d = dynamic_cast<ClassDecl*>(cType->GetId()->GetDecl());
+    Assert(d);
+    int size = d->GetInstanceSize();
+    Location *t = CG->GenLoadConstant(size);
+    emit_loc = CG->GenBuiltInCall(Alloc, t);
+    Location *l = CG->GenLoadLabel(d->GetId()->GetIdName());
+    CG->GenStore(emit_loc, l, 0);
 }
 
 NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc) {
     Assert(sz != NULL && et != NULL);
-    (size=sz)->SetParent(this); 
+    (size=sz)->SetParent(this);
     (elemType=et)->SetParent(this);
 }
 
-       
-Type* NewArrayExpr::GetType() {
-    return new ArrayType(elemType);
+void NewArrayExpr::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    size->Print(indentLevel+1);
+    elemType->Print(indentLevel+1);
 }
 
-Location* NewArrayExpr::Emit(CodeGenerator *cg) {
-    Location *s = size->Emit(cg);
-    Location *c = cg->GenLoadConstant(CodeGenerator::VarSize);
+void NewArrayExpr::CheckType() {
+    Type *t;
 
-    EmitRuntimeSizeCheck(cg, s);
+    size->Check(E_CheckType);
+    t = size->GetType();
+    if (t == NULL) {
+        
+    } else if (t != Type::intType) {
+        ReportError::NewArraySizeNotInteger(size);
+    }
 
-    Location *n = cg->GenBinaryOp("*", s, c);
-    Location *mem = cg->GenBuiltInCall(Alloc, cg->GenBinaryOp("+", c, n));
-    cg->GenStore(mem, s);
-
-    return mem;
+    elemType->Check(E_CheckType);
+    if (!elemType->GetType()) {
+        
+        return;
+    } else {
+        
+        expr_type = new ArrayType(*location, elemType);
+        expr_type->Check(E_CheckDecl);
+    }
 }
 
-int NewArrayExpr::GetMemBytes() {
-    return size->GetMemBytes() + 4 * CodeGenerator::VarSize +
-           GetMemBytesRuntimeSizeCheck();
+void NewArrayExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        size->Check(c);
+        elemType->Check(c);
+    }
 }
 
-Location* NewArrayExpr::EmitRuntimeSizeCheck(CodeGenerator *cg, Location *siz) {
-    Location *zro = cg->GenLoadConstant(0);
+void NewArrayExpr::Emit() {
+    size->Emit();
+    Location *t0 = size->GetEmitLocDeref();
+    Location *t1 = CG->GenLoadConstant(0);
+    Location *t2 = CG->GenBinaryOp("<=", t0, t1);
 
-    Location *lessZro = cg->GenBinaryOp("<", siz, zro);
-    Location *equlZro = cg->GenBinaryOp("==", siz, zro);
-    Location *lessEqulZro = cg->GenBinaryOp("||", lessZro, equlZro);
+    const char *l = CG->NewLabel();
+    CG->GenIfZ(t2, l);
+    Location *t3 = CG->GenLoadConstant(err_arr_bad_size);
+    CG->GenBuiltInCall(PrintString, t3);
+    CG->GenBuiltInCall(Halt);
 
-    const char *passCheck = cg->NewLabel();
-    cg->GenIfZ(lessEqulZro, passCheck);
-    cg->GenBuiltInCall(PrintString, cg->GenLoadConstant(err_arr_bad_size));
-    cg->GenBuiltInCall(Halt);
-    cg->GenLabel(passCheck);
-
-    return NULL;
+    CG->GenLabel(l);
+    Location *t4 = CG->GenLoadConstant(1);
+    Location *t5 = CG->GenBinaryOp("+", t4, t0);
+    Location *t6 = CG->GenLoadConstant(elemType->GetTypeSize());
+    Location *t7 = CG->GenBinaryOp("*", t5, t6);
+    Location *t8 = CG->GenBuiltInCall(Alloc, t7);
+    CG->GenStore(t8, t0);
+    Location *t9 = CG->GenBinaryOp("+", t8, t6);
+    emit_loc = t9;
 }
 
-int NewArrayExpr::GetMemBytesRuntimeSizeCheck() {
-    return 5 * CodeGenerator::VarSize;
+void ReadIntegerExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        expr_type = Type::intType;
+    }
 }
 
-
-Type* ReadIntegerExpr::GetType() {
-    return Type::intType;
+void ReadIntegerExpr::Emit() {
+    emit_loc = CG->GenBuiltInCall(ReadInteger);
 }
 
-Location* ReadIntegerExpr::Emit(CodeGenerator *cg) {
-    return cg->GenBuiltInCall(ReadInteger);
+void ReadLineExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        expr_type = Type::stringType;
+    }
 }
 
-int ReadIntegerExpr::GetMemBytes() {
-    return CodeGenerator::VarSize;
+void ReadLineExpr::Emit() {
+    emit_loc = CG->GenBuiltInCall(ReadLine);
 }
 
-Type* ReadLineExpr::GetType() {
-    return Type::stringType;
+PostfixExpr::PostfixExpr(LValue *lv, Operator *o)
+    : Expr(Join(lv->GetLocation(), o->GetLocation())) {
+    Assert(lv != NULL && o != NULL);
+    (lvalue=lv)->SetParent(this);
+    (op=o)->SetParent(this);
 }
 
-Location* ReadLineExpr::Emit(CodeGenerator *cg) {
-    return cg->GenBuiltInCall(ReadLine);
+void PostfixExpr::PrintChildren(int indentLevel) {
+    if (expr_type) std::cout << " <" << expr_type << ">";
+    if (emit_loc) emit_loc->Print();
+    lvalue->Print(indentLevel+1);
+    op->Print(indentLevel+1);
 }
 
-int ReadLineExpr::GetMemBytes() {
-    return CodeGenerator::VarSize;
+void PostfixExpr::CheckType() {
+    lvalue->Check(E_CheckType);
+    op->Check(E_CheckType);
+    Type *t = lvalue->GetType();
+    if (t == NULL) {
+        
+    } else if (t != Type::intType) {
+        ReportError::IncompatibleOperand(op, t);
+    } else {
+        expr_type = t;
+    }
 }
+
+void PostfixExpr::Check(checkT c) {
+    if (c == E_CheckType) {
+        this->CheckType();
+    } else {
+        lvalue->Check(c);
+        op->Check(c);
+    }
+}
+
+void PostfixExpr::Emit() {
+    lvalue->Emit();
+    
+    Location *l1 = lvalue->GetEmitLoc();
+    Location *l2 = lvalue->GetEmitLocDeref();
+
+    
+    Location *t0 = CG->GenTempVar();
+    CG->GenAssign(t0, l2);
+
+    
+    l2 = CG->GenBinaryOp(strcmp(op->GetOpStr(), "++") ? "-" : "+",
+            l2, CG->GenLoadConstant(1));
+
+    
+    if (l1->GetBase() != NULL) {
+        CG->GenStore(l1->GetBase(), l2, l1->GetOffset());
+    } else if (lvalue->IsArrayAccessRef()) {
+        CG->GenStore(l1, l2);
+    } else {
+        CG->GenAssign(l1, l2);
+    }
+
+    
+    emit_loc = t0;
+}
+

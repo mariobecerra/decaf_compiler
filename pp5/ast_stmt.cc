@@ -1,96 +1,82 @@
-/* File: ast_stmt.cc
- * -----------------
- * Implementation of statement node classes.
- */
-#include "ast_stmt.h"
-#include "ast_type.h"
+
+
 #include "ast_decl.h"
 #include "ast_expr.h"
-#include "codegen.h"
-#include "hashtable.h"
+#include "ast_stmt.h"
+#include "ast_type.h"
 
-Scope *Program::gScope = new Scope;
-stack<const char*> *Program::gBreakLabels = new stack<const char*>;
-
-Scope::Scope() : table(new Hashtable<Decl*>) {
-    // Empty
-}
-
-void Scope::AddDecl(Decl *d) {
-    table->Enter(d->GetName(), d);
-}
-
-ostream& operator<<(ostream& out, Scope *s) {
-    out << "========== Scope ==========" << std::endl;
-    Iterator<Decl*> iter = s->table->GetIterator();
-    Decl *d;
-    while ((d = iter.GetNextValue()) != NULL)
-        out << d << std::endl;
-    return out;
-}
-
-Program::Program(List<Decl*> *d) : codeGenerator(new CodeGenerator) {
+Program::Program(List<Decl*> *d) {
     Assert(d != NULL);
     (decls=d)->SetParentAll(this);
-    scope = gScope;
+}
+
+void Program::PrintChildren(int indentLevel) {
+    decls->PrintAll(indentLevel+1);
+    printf("\n");
 }
 
 void Program::Check() {
-    /* pp3: here is where the semantic analyzer is kicked off.
-     *      The general idea is perform a tree traversal of the
-     *      entire program, examining all constructs for compliance
-     *      with the semantic rules.  Each node can have its own way of
-     *      checking itself, which makes for a great use of inheritance
-     *      and polymorphism in the node classes.
-     */
-    /* You can use your pp3 semantic analysis or leave it out if
-     * you want to avoid the clutter.  We won't test pp5 against 
-     * semantically-invalid programs.
-     */
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        gScope->AddDecl(decls->Nth(i));
+    
+    if (IsDebugOn("ast")) { this->Print(0); }
 
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        decls->Nth(i)->BuildScope();
-        
-    // Just build scope, no real check.
+    
+    ScopeM = new scopeST(); decls->CheckAll(E_BuildST);
+    if (IsDebugOn("st")) { ScopeM->Print(); }
+    PrintDebug("ast+", "BuildST finished.");
+    if (IsDebugOn("ast+")) { this->Print(0); }
+
+    
+    ScopeM->ReEnter(); decls->CheckAll(E_CheckDecl);
+    PrintDebug("ast+", "CheckDecl finished.");
+    if (IsDebugOn("ast+")) { this->Print(0); }
+
+    
+    ScopeM->ReEnter(); decls->CheckAll(E_CheckInherit);
+    PrintDebug("ast+", "CheckInherit finished.");
+    if (IsDebugOn("ast+")) { this->Print(0); }
+
+    
+    ScopeM->ReEnter(); decls->CheckAll(E_CheckType);
+    PrintDebug("ast+", "CheckType finished.");
+    if (IsDebugOn("ast+")) { this->Print(0); }
 }
 
 void Program::Emit() {
-    /* pp5: here is where the code generation is kicked off.
-     *      The general idea is perform a tree traversal of the
-     *      entire program, generating instructions as you go.
-     *      Each node can have its own way of translating itself,
-     *      which makes for a great use of inheritance and
-     *      polymorphism in the node classes.
-     */
-    int offset = CodeGenerator::OffsetToFirstGlobal;
+    
 
-    for (int i = 0, n = decls->NumElements(); i < n; ++i) {
-        VarDecl *d = dynamic_cast<VarDecl*>(decls->Nth(i));
-        if (d == NULL)
-            continue;
-
-        Location *loc = new Location(gpRelative, offset, d->GetName());
-        d->SetMemLoc(loc);
-        offset += d->GetMemBytes();
+    
+    bool has_main = false;
+    for (int i = 0; i < decls->NumElements(); i++) {
+        Decl *d = decls->Nth(i);
+        if (d->IsFnDecl()) {
+            if (!strcmp(d->GetId()->GetIdName(), "main")) {
+                has_main = true;
+                break;
+            }
+        }
+    }
+    if (!has_main) {
+        ReportError::NoMainFound();
+        return;
     }
 
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        decls->Nth(i)->PreEmit();
+    PrintDebug("tac+", "Assign offset for class/interface members & global.");
+    
+    for (int i = 0; i < decls->NumElements(); i++) {
+        decls->Nth(i)->AssignOffset();
+    }
+    
+    for (int i = 0; i < decls->NumElements(); i++) {
+        decls->Nth(i)->AddPrefixToMethods();
+    }
+    if (IsDebugOn("tac+")) { this->Print(0); }
 
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        decls->Nth(i)->Emit(codeGenerator);
+    PrintDebug("tac+", "Begin Emitting TAC for Program.");
+    decls->EmitAll();
+    if (IsDebugOn("tac+")) { this->Print(0); }
 
-    codeGenerator->DoFinalCodeGen();
-}
-
-Stmt::Stmt() : Node() {
-    scope = new Scope;
-}
-
-Stmt::Stmt(yyltype loc) : Node(loc) {
-    scope = new Scope;
+    
+    CG->DoFinalCodeGen();
 }
 
 StmtBlock::StmtBlock(List<VarDecl*> *d, List<Stmt*> *s) {
@@ -99,221 +85,442 @@ StmtBlock::StmtBlock(List<VarDecl*> *d, List<Stmt*> *s) {
     (stmts=s)->SetParentAll(this);
 }
 
-void StmtBlock::BuildScope() {
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        scope->AddDecl(decls->Nth(i));
-
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        decls->Nth(i)->BuildScope();
-
-    for (int i = 0, n = stmts->NumElements(); i < n; ++i)
-        stmts->Nth(i)->BuildScope();
+void StmtBlock::PrintChildren(int indentLevel) {
+    decls->PrintAll(indentLevel+1);
+    stmts->PrintAll(indentLevel+1);
 }
 
-Location* StmtBlock::Emit(CodeGenerator *cg) {
-    for (int i = 0, n = decls->NumElements(); i < n; ++i) {
-        VarDecl *d = dynamic_cast<VarDecl*>(decls->Nth(i));
-        if (d == NULL)
-            continue;
-        Location *loc = cg->GenLocalVar(d->GetName(), d->GetMemBytes());
-        d->SetMemLoc(loc);
+void StmtBlock::BuildST() {
+    ScopeM->BuildScope();
+    decls->CheckAll(E_BuildST);
+    stmts->CheckAll(E_BuildST);
+    ScopeM->ExitScope();
+}
+
+void StmtBlock::Check(checkT c) {
+    if (c == E_BuildST) {
+        this->BuildST();
+    } else {
+        ScopeM->EnterScope();
+        decls->CheckAll(c);
+        stmts->CheckAll(c);
+        ScopeM->ExitScope();
     }
-
-    for (int i = 0, n = stmts->NumElements(); i < n; ++i)
-        stmts->Nth(i)->Emit(cg);
-
-    return NULL;
 }
 
-int StmtBlock::GetMemBytes() {
-    int memBytes = 0;
-
-    for (int i = 0, n = decls->NumElements(); i < n; ++i)
-        memBytes += decls->Nth(i)->GetMemBytes();
-
-    for (int i = 0, n = stmts->NumElements(); i < n; ++i)
-        memBytes += stmts->Nth(i)->GetMemBytes();
-
-    return memBytes;
+void StmtBlock::Emit() {
+    decls->EmitAll();
+    stmts->EmitAll();
 }
 
-ConditionalStmt::ConditionalStmt(Expr *t, Stmt *b) { 
+ConditionalStmt::ConditionalStmt(Expr *t, Stmt *b) {
     Assert(t != NULL && b != NULL);
-    (test=t)->SetParent(this); 
+    (test=t)->SetParent(this);
     (body=b)->SetParent(this);
 }
 
-void ConditionalStmt::BuildScope() {
-    test->BuildScope();
-    body->BuildScope();
-}
-
-void LoopStmt::BuildScope() {
-    ConditionalStmt::BuildScope();
-}
-
-ForStmt::ForStmt(Expr *i, Expr *t, Expr *s, Stmt *b): LoopStmt(t, b) { 
+ForStmt::ForStmt(Expr *i, Expr *t, Expr *s, Stmt *b): LoopStmt(t, b) {
     Assert(i != NULL && t != NULL && s != NULL && b != NULL);
     (init=i)->SetParent(this);
     (step=s)->SetParent(this);
 }
 
-void ForStmt::BuildScope() {
-    LoopStmt::BuildScope();
-
-    init->BuildScope();
-    step->BuildScope();
+void ForStmt::PrintChildren(int indentLevel) {
+    init->Print(indentLevel+1, "(init) ");
+    test->Print(indentLevel+1, "(test) ");
+    step->Print(indentLevel+1, "(step) ");
+    body->Print(indentLevel+1, "(body) ");
 }
 
-Location* ForStmt::Emit(CodeGenerator *cg) {
-    const char* top = cg->NewLabel();
-    const char* bot = cg->NewLabel();
-
-    Program::gBreakLabels->push(bot);
-
-    init->Emit(cg);
-    cg->GenLabel(top);
-    Location *t = test->Emit(cg);
-    cg->GenIfZ(t, bot);
-    body->Emit(cg);
-    step->Emit(cg);
-    cg->GenGoto(top);
-    cg->GenLabel(bot);
-
-    Program::gBreakLabels->pop();
-
-    return NULL;
-
+void ForStmt::BuildST() {
+    ScopeM->BuildScope();
+    body->Check(E_BuildST);
+    ScopeM->ExitScope();
 }
 
-int ForStmt::GetMemBytes() {
-    return init->GetMemBytes() + test->GetMemBytes() +
-           body->GetMemBytes() + step->GetMemBytes();
+void ForStmt::CheckType() {
+    init->Check(E_CheckType);
+    test->Check(E_CheckType);
+    if (test->GetType() && test->GetType() != Type::boolType) {
+        ReportError::TestNotBoolean(test);
+    }
+    step->Check(E_CheckType);
+    ScopeM->EnterScope();
+    body->Check(E_CheckType);
+    ScopeM->ExitScope();
 }
 
-void WhileStmt::BuildScope() {
-    LoopStmt::BuildScope();
+void ForStmt::Check(checkT c) {
+    switch (c) {
+        case E_BuildST:
+            this->BuildST(); break;
+        case E_CheckType:
+            this->CheckType(); break;
+        default:
+            init->Check(c);
+            test->Check(c);
+            step->Check(c);
+            ScopeM->EnterScope();
+            body->Check(c);
+            ScopeM->ExitScope();
+    }
 }
 
-Location* WhileStmt::Emit(CodeGenerator *cg) {
-    const char* top = cg->NewLabel();
-    const char* bot = cg->NewLabel();
+void ForStmt::Emit() {
+    init->Emit();
 
-    Program::gBreakLabels->push(bot);
+    const char *l0 = CG->NewLabel();
+    CG->GenLabel(l0);
+    test->Emit();
+    Location *t0 = test->GetEmitLocDeref();
+    const char *l1 = CG->NewLabel();
+    end_loop_label = l1;
+    CG->GenIfZ(t0, l1);
 
-    cg->GenLabel(top);
-    Location *t = test->Emit(cg);
-    cg->GenIfZ(t, bot);
-    body->Emit(cg);
-    cg->GenGoto(top);
-    cg->GenLabel(bot);
+    body->Emit();
+    step->Emit();
+    CG->GenGoto(l0);
 
-    Program::gBreakLabels->pop();
-
-    return NULL;
+    CG->GenLabel(l1);
 }
 
-int WhileStmt::GetMemBytes() {
-    return test->GetMemBytes() + body->GetMemBytes();
+void WhileStmt::PrintChildren(int indentLevel) {
+    test->Print(indentLevel+1, "(test) ");
+    body->Print(indentLevel+1, "(body) ");
 }
 
-IfStmt::IfStmt(Expr *t, Stmt *tb, Stmt *eb): ConditionalStmt(t, tb) { 
-    Assert(t != NULL && tb != NULL); // else can be NULL
+void WhileStmt::BuildST() {
+    ScopeM->BuildScope();
+    body->Check(E_BuildST);
+    ScopeM->ExitScope();
+}
+
+void WhileStmt::CheckType() {
+    test->Check(E_CheckType);
+    if (test->GetType() && test->GetType() != Type::boolType) {
+        ReportError::TestNotBoolean(test);
+    }
+    ScopeM->EnterScope();
+    body->Check(E_CheckType);
+    ScopeM->ExitScope();
+}
+
+void WhileStmt::Check(checkT c) {
+    switch (c) {
+        case E_BuildST:
+            this->BuildST(); break;
+        case E_CheckType:
+            this->CheckType(); break;
+        default:
+            test->Check(c);
+            ScopeM->EnterScope();
+            body->Check(c);
+            ScopeM->ExitScope();
+    }
+}
+
+void WhileStmt::Emit() {
+    const char *l0 = CG->NewLabel();
+    CG->GenLabel(l0);
+
+    test->Emit();
+    Location *t0 = test->GetEmitLocDeref();
+    const char *l1 = CG->NewLabel();
+    end_loop_label = l1;
+    CG->GenIfZ(t0, l1);
+
+    body->Emit();
+    CG->GenGoto(l0);
+
+    CG->GenLabel(l1);
+}
+
+IfStmt::IfStmt(Expr *t, Stmt *tb, Stmt *eb): ConditionalStmt(t, tb) {
+    Assert(t != NULL && tb != NULL); 
     elseBody = eb;
     if (elseBody) elseBody->SetParent(this);
 }
 
-void IfStmt::BuildScope() {
-    ConditionalStmt::BuildScope();
-
-    if (elseBody) elseBody->BuildScope();
+void IfStmt::PrintChildren(int indentLevel) {
+    test->Print(indentLevel+1, "(test) ");
+    body->Print(indentLevel+1, "(then) ");
+    if (elseBody) elseBody->Print(indentLevel+1, "(else) ");
 }
 
-Location* IfStmt::Emit(CodeGenerator *cg) {
-    const char* els = cg->NewLabel();
-    const char* bot = cg->NewLabel();
-
-    Location *t = test->Emit(cg);
-    cg->GenIfZ(t, els);
-    body->Emit(cg);
-    cg->GenGoto(bot);
-    cg->GenLabel(els);
-    if (elseBody) elseBody->Emit(cg);
-    cg->GenLabel(bot);
-
-    return NULL;
+void IfStmt::BuildST() {
+    ScopeM->BuildScope();
+    body->Check(E_BuildST);
+    ScopeM->ExitScope();
+    if (elseBody) {
+        ScopeM->BuildScope();
+        elseBody->Check(E_BuildST);
+        ScopeM->ExitScope();
+    }
 }
 
-int IfStmt::GetMemBytes() {
-    int memBytes = test->GetMemBytes() + body->GetMemBytes();
-    if (elseBody) memBytes += elseBody->GetMemBytes();
-    return memBytes;
+void IfStmt::CheckType() {
+    test->Check(E_CheckType);
+    if (test->GetType() && test->GetType() != Type::boolType) {
+        ReportError::TestNotBoolean(test);
+    }
+    ScopeM->EnterScope();
+    body->Check(E_CheckType);
+    ScopeM->ExitScope();
+    if (elseBody) {
+        ScopeM->EnterScope();
+        elseBody->Check(E_CheckType);
+        ScopeM->ExitScope();
+    }
 }
 
-Location* BreakStmt::Emit(CodeGenerator *cg) {
-    cg->GenGoto(Program::gBreakLabels->top());
-    return NULL;
+void IfStmt::Check(checkT c) {
+    switch (c) {
+        case E_BuildST:
+            this->BuildST(); break;
+        case E_CheckType:
+            this->CheckType(); break;
+        default:
+            test->Check(c);
+            ScopeM->EnterScope();
+            body->Check(c);
+            ScopeM->ExitScope();
+            if (elseBody) {
+                ScopeM->EnterScope();
+                elseBody->Check(c);
+                ScopeM->ExitScope();
+            }
+    }
 }
 
-int BreakStmt::GetMemBytes() {
-    return 0;
+void IfStmt::Emit() {
+    test->Emit();
+    Location *t0 = test->GetEmitLocDeref();
+    const char *l0 = CG->NewLabel();
+    CG->GenIfZ(t0, l0);
+
+    body->Emit();
+    const char *l1 = CG->NewLabel();
+    CG->GenGoto(l1);
+
+    CG->GenLabel(l0);
+    if (elseBody) elseBody->Emit();
+    CG->GenLabel(l1);
 }
 
-ReturnStmt::ReturnStmt(yyltype loc, Expr *e) : Stmt(loc) { 
+void BreakStmt::Check(checkT c) {
+    if (c == E_CheckType) {
+        Node *n = this;
+        while (n->GetParent()) {
+            if (n->IsLoopStmt() || n->IsCaseStmt()) return;
+            n = n->GetParent();
+        }
+        ReportError::BreakOutsideLoop(this);
+    }
+}
+
+void BreakStmt::Emit() {
+    
+    Node *n = this;
+    while (n->GetParent()) {
+        if (n->IsLoopStmt()) {
+            const char *l = dynamic_cast<LoopStmt*>(n)->GetEndLoopLabel();
+            PrintDebug("tac+", "endloop label %s.", l);
+            CG->GenGoto(l);
+            return;
+        } else if (n->IsSwitchStmt()) {
+            const char *l = dynamic_cast<SwitchStmt*>(n)->GetEndSwitchLabel();
+            PrintDebug("tac+", "endswitch label %s.", l);
+            CG->GenGoto(l);
+            return;
+        }
+        n = n->GetParent();
+    }
+}
+
+CaseStmt::CaseStmt(IntConstant *v, List<Stmt*> *s) {
+    Assert(s != NULL);
+    value = v;
+    if (value) value->SetParent(this);
+    (stmts=s)->SetParentAll(this);
+    case_label = NULL;
+}
+
+void CaseStmt::PrintChildren(int indentLevel) {
+    if (value) value->Print(indentLevel+1);
+    stmts->PrintAll(indentLevel+1);
+}
+
+void CaseStmt::BuildST() {
+    ScopeM->BuildScope();
+    stmts->CheckAll(E_BuildST);
+    ScopeM->ExitScope();
+}
+
+void CaseStmt::Check(checkT c) {
+    if (c == E_BuildST) {
+        this->BuildST();
+    } else {
+        if (value) value->Check(c);
+        ScopeM->EnterScope();
+        stmts->CheckAll(c);
+        ScopeM->ExitScope();
+    }
+}
+
+void CaseStmt::GenCaseLabel() {
+    case_label = CG->NewLabel();
+}
+
+void CaseStmt::Emit() {
+    CG->GenLabel(case_label);
+    stmts->EmitAll();
+}
+
+SwitchStmt::SwitchStmt(Expr *e, List<CaseStmt*> *c) {
+    Assert(e != NULL && c != NULL);
+    (expr=e)->SetParent(this);
+    (cases=c)->SetParentAll(this);
+    end_switch_label = NULL;
+}
+
+void SwitchStmt::PrintChildren(int indentLevel) {
+    expr->Print(indentLevel+1);
+    cases->PrintAll(indentLevel+1);
+}
+
+void SwitchStmt::BuildST() {
+    ScopeM->BuildScope();
+    cases->CheckAll(E_BuildST);
+    ScopeM->ExitScope();
+}
+
+void SwitchStmt::Check(checkT c) {
+    if (c == E_BuildST) {
+        this->BuildST();
+    } else {
+        expr->Check(c);
+        ScopeM->EnterScope();
+        cases->CheckAll(c);
+        ScopeM->ExitScope();
+    }
+}
+
+void SwitchStmt::Emit() {
+    expr->Emit();
+
+    
+    end_switch_label = CG->NewLabel();
+
+    Location *switch_value = expr->GetEmitLocDeref();
+
+    
+    
+    
+    for (int i = 0; i < cases->NumElements(); i++) {
+        CaseStmt *c = cases->Nth(i);
+
+        
+        c->GenCaseLabel();
+        const char *cl = c->GetCaseLabel();
+
+        
+        IntConstant *cv = c->GetCaseValue();
+
+        
+        if (cv) {
+            
+            cv->Emit();
+            Location *cvl = cv->GetEmitLocDeref();
+            Location *t = CG->GenBinaryOp("!=", switch_value, cvl);
+            CG->GenIfZ(t, cl);
+        } else {
+            
+            CG->GenGoto(cl);
+        }
+    }
+
+    
+    cases->EmitAll();
+
+    
+    CG->GenLabel(end_switch_label);
+}
+
+ReturnStmt::ReturnStmt(yyltype loc, Expr *e) : Stmt(loc) {
     Assert(e != NULL);
     (expr=e)->SetParent(this);
 }
-  
-void ReturnStmt::BuildScope() {
-    expr->BuildScope();
+
+void ReturnStmt::PrintChildren(int indentLevel) {
+    expr->Print(indentLevel+1);
 }
 
-Location* ReturnStmt::Emit(CodeGenerator *cg) {
-    if (expr == NULL)
-        cg->GenReturn();
-    else
-        cg->GenReturn(expr->Emit(cg));
-
-    return NULL;
+void ReturnStmt::Check(checkT c) {
+    expr->Check(c);
+    if (c == E_CheckType) {
+        Node *n = this;
+        
+        while (n->GetParent()) {
+            if (dynamic_cast<FnDecl*>(n) != NULL) break;
+            n = n->GetParent();
+        }
+        Type *t_given = expr->GetType();
+        Type *t_expected = dynamic_cast<FnDecl*>(n)->GetType();
+        if (t_given && t_expected) {
+            if (!t_expected->IsCompatibleWith(t_given)) {
+                ReportError::ReturnMismatch(this, t_given, t_expected);
+            }
+        }
+    }
 }
 
-int ReturnStmt::GetMemBytes() {
-    if (expr == NULL)
-        return 0;
-    else
-        return expr->GetMemBytes();
+void ReturnStmt::Emit() {
+    if (expr->IsEmptyExpr()) {
+        CG->GenReturn();
+    } else {
+        expr->Emit();
+        CG->GenReturn(expr->GetEmitLocDeref());
+    }
 }
 
-PrintStmt::PrintStmt(List<Expr*> *a) {    
+PrintStmt::PrintStmt(List<Expr*> *a) {
     Assert(a != NULL);
     (args=a)->SetParentAll(this);
 }
 
-void PrintStmt::BuildScope() {
-    for (int i = 0, n = args->NumElements(); i < n; ++i)
-        args->Nth(i)->BuildScope();
+void PrintStmt::PrintChildren(int indentLevel) {
+    args->PrintAll(indentLevel+1, "(args) ");
 }
 
-Location* PrintStmt::Emit(CodeGenerator *cg) {
-    for (int i = 0, n = args->NumElements(); i < n; ++i) {
-        Expr *e = args->Nth(i);
-        BuiltIn b = e->GetType()->GetPrint();
-        /* Print can only take ints, bools, or strings as parameters
-         * (remember, doubles need not be supported for PP4). GetPrint()
-         * should only return NumBuiltIns if the type is not an int, bool,
-         * or string. This should never happen.
-         */
-        Assert(b != NumBuiltIns);
-
-        cg->GenBuiltInCall(b, e->Emit(cg));
+void PrintStmt::Check(checkT c) {
+    args->CheckAll(c);
+    if (c == E_CheckType) {
+        for (int i = 0; i < args->NumElements(); i++) {
+            Type *t = args->Nth(i)->GetType();
+            if (t != NULL && t != Type::stringType && t != Type::intType
+                     && t != Type::boolType) {
+                ReportError::PrintArgMismatch(args->Nth(i), i + 1, t);
+            }
+        }
     }
-
-    return NULL;
 }
 
-int PrintStmt::GetMemBytes() {
-    int memBytes = 0;
-    for (int i = 0, n = args->NumElements(); i < n; ++i)
-        memBytes += args->Nth(i)->GetMemBytes();
-   return memBytes;
+void PrintStmt::Emit() {
+    for (int i = 0; i < args->NumElements(); i++) {
+        args->Nth(i)->Emit();
+        
+        Type *t = args->Nth(i)->GetType();
+        BuiltIn f;
+        if (t == Type::intType) {
+            f = PrintInt;
+        } else if (t == Type::stringType) {
+            f = PrintString;
+        } else {
+            f = PrintBool;
+        }
+        Location *l = args->Nth(i)->GetEmitLocDeref();
+        Assert(l);
+        CG->GenBuiltInCall(f, l);
+    }
 }
+
